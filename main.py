@@ -17,6 +17,8 @@ from constants import *
 from client import cnn_2layers, cnn_3layers
 from ResNet20 import resnet20
 import CIFAR
+import model_trainers
+from FedMD import FedMD
 
 from PIL import Image
 from tqdm import tqdm
@@ -37,11 +39,11 @@ if __name__ == '__main__':
     n_classes = len(public_classes) + len(private_classes)
 
     emnist_data_dir = CONF_MODELS["EMNIST_dir"]    
-    N_parties = CONF_MODELS["N_parties"]
+    N_agents = CONF_MODELS["N_agents"]
     N_samples_per_class = CONF_MODELS["N_samples_per_class"]
 
     N_rounds = CONF_MODELS["N_rounds"]
-    N_alignment = CONF_MODELS["N_alignment"]
+    N_subset = CONF_MODELS["N_subset"]
     N_private_training_round = CONF_MODELS["N_private_training_round"]
     private_training_batchsize = CONF_MODELS["private_training_batchsize"]
     N_logits_matching_round = CONF_MODELS["N_logits_matching_round"]
@@ -59,3 +61,40 @@ if __name__ == '__main__':
 
     train_cifar10, test_cifar10   = CIFAR.load_CIFAR10()
     train_cifar100, test_cifar100 = CIFAR.load_CIFAR100()
+
+    private_train_dataset = CIFAR.generate_class_subset(train_cifar100, private_classes)
+    private_test_dataset  = CIFAR.generate_class_subset(test_cifar100,  private_classes)
+
+    private_data, total_private_data = CIFAR.split_dataset(private_train_dataset, N_agents, N_samples_per_class, private_classes)
+
+    agents = []
+    for i, item in enumerate(model_config):
+        model_name = item["model_type"]
+        model_params = item["params"]
+        tmp = CANDIDATE_MODELS[model_name](n_classes=n_classes, 
+                                            input_shape=(32,32,3),
+                                            **model_params)
+        print("model {0} : {1}".format(i, model_saved_names[i]))
+        agents.append(tmp)
+        
+        del model_name, model_params, tmp
+    #END FOR LOOP
+    
+    for agent in agents:
+        optimizer = optim.Adam(agent.parameters(), lr = 1e-3)
+        loss = nn.CrossEntropyLoss()
+        model_trainers.train_model(agent, train_cifar10, test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20)
+    
+    fedmd = FedMD(agents, 
+        public_dataset=train_cifar10, 
+        private_data=private_data, 
+        total_private_data=total_private_data, 
+        private_test_data=private_test_dataset,
+        N_rounds=N_rounds,
+        N_subset=N_subset,
+        N_logits_matching_round=N_logits_matching_round,
+        logits_matching_batchsize=logits_matching_batchsize,
+        N_private_training_round=N_private_training_round,
+        private_training_batchsize=private_training_batchsize)
+    
+    collab = fedmd.collaborative_training()

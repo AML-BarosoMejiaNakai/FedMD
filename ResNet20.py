@@ -190,4 +190,4 @@ class ResNet20(nn.Module):
 # GN   0.6301   |  0.5330
 
 def resnet20(n_classes, option='B', norm_type="GROUP", **kwargs):
-  return ResNet20(num_classes=n_classes, option=option, norm_type=norm_type)
+  return ResNet20(num_blocks=3, num_classes=n_classes, option=option, norm_type=norm_type,)

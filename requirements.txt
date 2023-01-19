@@ -1,0 +1,12 @@
+torch
+matplotlib
+pandas
+scipy
+torchvision
+numpy
+seaborn
+imageio
+natsort
+Pillow
+tqdm
+wandb==0.13.7

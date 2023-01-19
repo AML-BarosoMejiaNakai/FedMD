@@ -69,7 +69,7 @@ def train_model(network, dataset, test_dataset, loss_fn, optimizer, batch_size=B
     if returnAcc:
       train_accuracy = running_corrects / len(dataset)
       test_accuracy = test_network(net, test_dataset, batch_size=BATCH_SIZE)
-      accuracy.append([train_accuracy, test_accuracy])
+      accuracy.append({"train_accuracy": train_accuracy, "test_accuracy": test_accuracy})
 
   #end of epoch
   if returnAcc:

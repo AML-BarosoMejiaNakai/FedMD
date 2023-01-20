@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class CNN(nn.Module):
 
-    def init(self, n_classes, n1=128, n2=192, n3=256, dropout_rate=0.2, input_shape=(28, 28), layers=2):
+    def __init__(self, n_classes, n1=128, n2=192, n3=256, dropout_rate=0.2, input_shape=(28, 28), layers=2):
 
         super().__init__()
 
@@ -52,7 +52,7 @@ class CNN(nn.Module):
             # y = Dropout(dropout_rate)(y)
             self.dropout2 = torch.nn.Dropout(p=dropout_rate)
             
-            fc_in_features = (input_shape[0] - 2) / 2
+            fc_in_features = int((input_shape[0] - 2) / 2)
 
         else:
 
@@ -86,7 +86,7 @@ class CNN(nn.Module):
             # 64x64 -> 15x15
             # 32x32 -> 7x7
             
-            fc_in_features = (input_shape[0] - 4) / 4
+            fc_in_features = int((input_shape[0] - 4) / 4)
 
         #####
 
@@ -141,6 +141,7 @@ class CNN(nn.Module):
         x = self.flatten(x)
         x = self.fc(x)
         # x = self.softmax(x)
+        return x
 
 
 def cnn_2layers(n_classes, n1=128, n2=256, dropout_rate=0.2, input_shape=(28, 28)):

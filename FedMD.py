@@ -36,19 +36,18 @@ class FedMD():
         print("start model initialization: ")
         for i in range(self.N_agents):
             print("model ", i)
-            model_A_twin = None
-            model_A_twin = copy.deepcopy(agents[i]) # Was clone_model
-            # model_A_twin.set_weights(agents[i].get_weights())
-            model_A_twin.load_state_dict(agents[i].state_dict())
-            # model_A_twin.compile(optimizer=tf.keras.optimizers.Adam(lr = 1e-3), 
+            model_A = copy.deepcopy(agents[i]) # Was clone_model
+            # model_A.set_weights(agents[i].get_weights())
+            model_A.load_state_dict(agents[i].state_dict())
+            # model_A.compile(optimizer=tf.keras.optimizers.Adam(lr = 1e-3), 
             #                      loss = "sparse_categorical_crossentropy",
             #                      metrics = ["accuracy"])
-            optimizer = optim.Adam(model_A_twin.parameters(), lr = 1e-3)
+            optimizer = optim.Adam(model_A.parameters(), lr = 1e-3)
             loss = nn.CrossEntropyLoss()
             
             print("start full stack training ... ")        
             
-            # model_A_twin.fit(private_data[i]["X"], private_data[i]["y"],
+            # model_A.fit(private_data[i]["X"], private_data[i]["y"],
             #                  batch_size = 32, epochs = 25, shuffle=True, verbose = 0,
             #                  validation_data = [private_test_data["X"], private_test_data["y"]],
             #                  callbacks=[EarlyStopping(monitor='val_accuracy', min_delta=0.001, patience=10)]
@@ -56,26 +55,26 @@ class FedMD():
             # OBS: Also passes the validation data and uses EarlyStopping
             # TODO: Early stopping on train_model
 
-            train_model(model_A_twin, private_data[i], loss, batch_size=32, num_epochs=25, optimizer=optimizer)
+            train_model(model_A, private_data[i], loss, batch_size=32, num_epochs=25, optimizer=optimizer)
             
             print("full stack training done")
             
-            # model_A = remove_last_layer(model_A_twin, loss="mean_absolute_error")
-            model_A = nn.Sequential(*(list(model_A_twin.children())[:-1])) # Removing last layer of the model_A_twin
+            # model_A = remove_last_layer(model_A, loss="mean_absolute_error")
+            # model_A = nn.Sequential(*(list(model_A.children())[:-1])) # Removing last layer of the model_A
             
             self.collaborative_agents.append({"model_logits": model_A, 
-                                               "model_classifier": model_A_twin,
-                                               "model_weights": model_A_twin.state_dict()}) # Was get_weights()
+                                               "model_classifier": model_A,
+                                               "model_weights": model_A.state_dict()}) # Was get_weights()
             
             # TODO: Need to include also the validation dataset on model_train and save these statistics
-            # self.init_result.append({"val_acc": model_A_twin.history.history['val_accuracy'],
-            #                          "train_acc": model_A_twin.history.history['accuracy'],
-            #                          "val_loss": model_A_twin.history.history['val_loss'],
-            #                          "train_loss": model_A_twin.history.history['loss'],
+            # self.init_result.append({"val_acc": model_A.history.history['val_accuracy'],
+            #                          "train_acc": model_A.history.history['accuracy'],
+            #                          "val_loss": model_A.history.history['val_loss'],
+            #                          "train_loss": model_A.history.history['loss'],
             #                         })
             
             print()
-            del model_A, model_A_twin
+            del model_A
         #END FOR LOOP
         
         print("calculate the theoretical upper bounds for participants: ")
@@ -159,9 +158,6 @@ class FedMD():
                 
                 weights_to_use = None
                 weights_to_use = d["model_weights"]
-                
-                # TODO: Other version without logits, consider model_A ( = model logits) = model_A_twin ( = model considering softmax)
-                # model_A doesn't have softmax, model_A_twin has softmax (Do a version where we only have, no softmax)
 
                 # d["model_logits"].set_weights(weights_to_use)
                 d["model_logits"].load_state_dict(weights_to_use)

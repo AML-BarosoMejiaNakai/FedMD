@@ -82,9 +82,9 @@ class CNN(nn.Module):
         return x
 
 
-def cnn_2layers(n_classes, n1=128, n2=256, dropout_rate=0.2, input_shape=(28, 28)):
+def cnn_2layers(n_classes, n1=128, n2=256, dropout_rate=0.2, input_shape=(28, 28), **kwargs):
     return CNN(n_classes, n1, n2, None, dropout_rate, input_shape, layers=2)
 
 
-def cnn_3layers(n_classes, n1=128, n2=192, n3=256, dropout_rate=0.2, input_shape=(28, 28)):
+def cnn_3layers(n_classes, n1=128, n2=192, n3=256, dropout_rate=0.2, input_shape=(28, 28), **kwargs):
     return CNN(n_classes, n1, n2, n3, dropout_rate, input_shape, layers=3)

@@ -36,6 +36,10 @@ def main():
     os.environ["WANDB_API_KEY"] = wandb_api_key
     os.environ["WANDB_MODE"] = "online"
 
+    run_id = None
+    if len(sys.argv) == 3:
+        run_id = sys.argv[2]
+
     model_config = CONF_MODELS["models"]
     pre_train_params = CONF_MODELS["pre_train_params"]
     model_saved_dir = CONF_MODELS["model_saved_dir"]
@@ -86,7 +90,7 @@ def main():
 
     private_test_dataset = CIFAR.generate_class_subset(private_test_dataset, mod_private_classes)
 
-    run, job_id = init_wandb()
+    run, job_id, resumed = init_wandb(run_id=run_id)
 
     agents = []
     for i, item in enumerate(model_config):
@@ -102,13 +106,22 @@ def main():
     #END FOR LOOP
     
     for i, agent in enumerate(agents):
-        optimizer = optim.Adam(agent.parameters(), lr = LR)
-        loss = nn.CrossEntropyLoss()
-        print(f"===== TRAINING {model_saved_names[i]} =====")
-        accuracies = model_trainers.train_model(agent, train_cifar10, test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
-        best_test_acc = max(accuracies, key=lambda x: x["test_accuracy"])["test_accuracy"]
-        wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
-        #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
+        train = True
+        if resumed:
+            weights = wandb.restore(f"ckpt/{model_saved_names[i]}_initial_pub.pt")
+            if weights is not None:
+                train = False
+                agents[i].load_state_dict(torch.load(weights.name))
+        if train:
+            optimizer = optim.Adam(agent.parameters(), lr = LR)
+            loss = nn.CrossEntropyLoss()
+            print(f"===== TRAINING {model_saved_names[i]} =====")
+            accuracies = model_trainers.train_model(agent, train_cifar10, test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
+            best_test_acc = max(accuracies, key=lambda x: x["test_accuracy"])["test_accuracy"]
+            wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
+            torch.save(agent.state_dict(), f'ckpt/{model_saved_names[i]}_initial_pub.pt')
+            wandb.save(f'ckpt/{model_saved_names[i]}_initial_pub.pt')
+            #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
 
     fedmd = FedMD(agents, model_saved_names,
         public_dataset=train_cifar10, 
@@ -154,8 +167,11 @@ def init_wandb(run_id=None):
         random_number = wandb.run.name.split('-')[-1]
         wandb.run.name = job_name + '-' + random_number
         wandb.run.save()
+        resumed = False
+    if wandb.run.resumed:
+        resumed = True
 
-    return run, job_name
+    return run, job_name, resumed
 
 if __name__ == '__main__':
     main()

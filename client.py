@@ -27,7 +27,7 @@ class CNN(nn.Module):
         # y = AveragePooling2D(pool_size=(2, 2), strides=1, padding="same")(y)
         avgpool1_padding = (0, 1, 0, 1) # padding="same"
         self.pad1 = nn.ZeroPad2d(padding=avgpool1_padding) # Pad 1 pixel on the right and bottom
-        self.avgpool1 = nn.AvgPool2d(kernel_size=(2, 2), stride=(1, 1), padding=avgpool1_padding)
+        self.avgpool1 = nn.AvgPool2d(kernel_size=(2, 2), stride=(1, 1))
 
         #####
 

@@ -65,11 +65,17 @@ def main():
 
     # random crop, random horizontal flip, per-pixel normalization 
 
+    print ("=== LOADING CIFAR 10 AND CIFAR 100 ===")
+
     train_cifar10, test_cifar10   = CIFAR.load_CIFAR10() # train_cifar10 = public_dataset
     train_cifar100, test_cifar100 = CIFAR.load_CIFAR100()
 
+    print ("=== Generating class subsets ===")
+
     private_train_dataset = CIFAR.generate_class_subset(train_cifar100, private_classes)
     private_test_dataset  = CIFAR.generate_class_subset(test_cifar100,  private_classes)
+
+    print (f"=== Splitting private dataset for the {N_agents} agents ===")
 
     private_data, total_private_data = CIFAR.split_dataset(private_train_dataset, N_agents, N_samples_per_class, private_classes)
 

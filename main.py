@@ -110,7 +110,7 @@ def main():
         wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
         #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
 
-    fedmd = FedMD(agents, 
+    fedmd = FedMD(agents, model_saved_names,
         public_dataset=train_cifar10, 
         private_data=private_data, 
         total_private_data=total_private_data, 

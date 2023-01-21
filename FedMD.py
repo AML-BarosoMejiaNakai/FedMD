@@ -3,15 +3,16 @@ import torch.optim as optim
 import torch.nn as nn
 import numpy as np
 import copy
-from model_trainers import train_model
+from model_trainers import *
 from CIFAR import stratified_sampling
-
+import wandb
+from constants import *
 
 class FedMD():
     # parties changed to agents
     # N_alignment changed to N_subset
     
-    def __init__(self, agents, public_dataset, 
+    def __init__(self, agents, model_saved_names, public_dataset, 
                  private_data, total_private_data,  
                  private_test_data, N_subset,
                  N_rounds, 
@@ -19,6 +20,7 @@ class FedMD():
                  N_private_training_round, private_training_batchsize):
 
         self.N_agents = len(agents)
+        self.model_saved_names = model_saved_names
         self.public_dataset = public_dataset
         self.private_data = private_data
         self.private_test_data = private_test_data
@@ -39,10 +41,10 @@ class FedMD():
             model_A = copy.deepcopy(agents[i]) # Was clone_model
             # model_A.set_weights(agents[i].get_weights())
             model_A.load_state_dict(agents[i].state_dict())
-            # model_A.compile(optimizer=tf.keras.optimizers.Adam(lr = 1e-3), 
+            # model_A.compile(optimizer=tf.keras.optimizers.Adam(lr = LR), 
             #                      loss = "sparse_categorical_crossentropy",
             #                      metrics = ["accuracy"])
-            optimizer = optim.Adam(model_A.parameters(), lr = 1e-3)
+            optimizer = optim.Adam(model_A.parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
             loss = nn.CrossEntropyLoss()
             
             print("start full stack training ... ")        
@@ -55,7 +57,9 @@ class FedMD():
             # OBS: Also passes the validation data and uses EarlyStopping
             # TODO: Early stopping on train_model
 
-            train_model(model_A, private_data[i], loss, batch_size=32, num_epochs=25, optimizer=optimizer)
+            accuracy = train_model(model_A, private_data[i], loss, batch_size=32, num_epochs=25, optimizer=optimizer, returnAcc=True)
+            best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])["test_accuracy"]
+            wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = best_test_acc
             
             print("full stack training done")
             
@@ -85,10 +89,10 @@ class FedMD():
             model_ub = copy.deepcopy(model)
             # model_ub.set_weights(model.get_weights())
             model_ub.load_state_dict(model.state_dict())
-            # model_ub.compile(optimizer=tf.keras.optimizers.Adam(lr = 1e-3),
+            # model_ub.compile(optimizer=tf.keras.optimizers.Adam(lr = LR),
             #                  loss = "sparse_categorical_crossentropy", 
             #                  metrics = ["accuracy"])
-            optimizer = optim.Adam(model_ub.parameters(), lr = 1e-3)
+            optimizer = optim.Adam(model_ub.parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
             loss = nn.CrossEntropyLoss()
             
             # model_ub.fit(total_private_data["X"], total_private_data["y"],
@@ -99,17 +103,22 @@ class FedMD():
             # OBS: Validation accuracy == our test accuracy since it is the value at the end of each epoch
 
             accuracy = train_model(model_ub, total_private_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 
+            best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])
+            wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = best_test_acc["test_accuracy"]
+            wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = best_test_acc["train_accuracy"]
             
+
             # self.upper_bounds.append(model_ub.history.history["val_accuracy"][-1])
             self.upper_bounds.append(accuracy["test_accuracy"]) ## SHOULD BE VAL ACCURACY!
             # self.pooled_train_result.append({"val_acc": model_ub.history.history["val_accuracy"], 
             #                                  "acc": model_ub.history.history["accuracy"]}) # "accuracy" == train accuracy
-            self.pooled_train_result.append({"val_acc": accuracy["test_accuracy"], 
+            self.pooled_train_result.append({"test_acc": accuracy["test_accuracy"], 
                                              "acc": accuracy["train_accuracy"]})
             
             del model_ub    
         print("the upper bounds are:", self.upper_bounds)
-    
+    # end init
+
     def collaborative_training(self):
         # start collaborating training    
         collaboration_performance = {i: [] for i in range(self.N_agents)}
@@ -126,26 +135,26 @@ class FedMD():
             print("update logits ... ")
             # update logits
             logits = 0
-            for d in self.collaborative_agents:
-                # d["model_logits"].set_weights(d["model_weights"])
-                d["model_logits"].load_state_dict(d["model_weights"])
-                # logits += d["model_logits"].predict(alignment_data["X"], verbose = 0) 
-                logits += d["model_logits"](alignment_data["X"])
+            for agent in self.collaborative_agents:
+                # agent["model_logits"].set_weights(agent["model_weights"])
+                agent["model_logits"].load_state_dict(agent["model_weights"])
+                # logits += agent["model_logits"].predict(alignment_data["X"], verbose = 0) 
+                model_logits = run_dataset(agent["model_logits"], alignment_data)
+                model_logits = torch.max(model_logits, 1) 
+                logits += model_logits
                 
             logits /= self.N_agents
             
             # test performance
             print("test performance ... ")
             
-            for index, d in enumerate(self.collaborative_agents):
-                # y_pred = d["model_classifier"].predict(self.private_test_data["X"], verbose = 0).argmax(axis = 1)
-                y_pred = d["model_classifier"](self.private_test_data["X"]).argmax(axis = 1)
-
-                collaboration_performance[index].append(np.mean(self.private_test_data["y"] == y_pred))
+            for index, agent in enumerate(self.collaborative_agents):
+                # y_pred = agent["model_classifier"].predict(self.private_test_data["X"], verbose = 0).argmax(axis = 1)
+                accuracy = test_network(network=agent, test_dataset=alignment_data)
                 
-                print(collaboration_performance[index][-1])
-                del y_pred
-                
+                print(f"Model {index} got accuracy of {accuracy}")
+                wandb.log({f"{self.model_saved_names[index]}_test_acc": accuracy*100}, step=r)
+                collaboration_performance[index].append(accuracy)              
                 
             r += 1
             if r > self.N_rounds:
@@ -153,48 +162,55 @@ class FedMD():
                 
                 
             print("updates models ...")
-            for index, d in enumerate(self.collaborative_agents):
+            for index, agent in enumerate(self.collaborative_agents):
                 print("model {0} starting alignment with public logits... ".format(index))
                 
-                
                 weights_to_use = None
-                weights_to_use = d["model_weights"]
+                weights_to_use = agent["model_weights"]
 
-                # d["model_logits"].set_weights(weights_to_use)
-                d["model_logits"].load_state_dict(weights_to_use)
-                # d["model_logits"].fit(alignment_data["X"], logits, 
+                # agent["model_logits"].set_weights(weights_to_use)
+                agent["model_logits"].load_state_dict(weights_to_use)
+                # agent["model_logits"].fit(alignment_data["X"], logits, 
                 #                       batch_size = self.logits_matching_batchsize,  
                 #                       epochs = self.N_logits_matching_round, 
                 #                       shuffle=True, verbose = 0)
-                optimizer = optim.Adam(d["model_logits"].parameters(), lr = 1e-3)
+                optimizer = optim.Adam(agent["model_logits"].parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
                 loss = nn.CrossEntropyLoss()
-                train_model(d["model_logits"], alignment_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer)
+                alignment_data.targets = logits
+                train_model(agent["model_logits"], alignment_data, loss, 
+                    batch_size=self.logits_matching_batchsize, 
+                    num_epochs=self.N_logits_matching_round, 
+                    optimizer=optimizer)
 
 
-                # d["model_weights"] = d["model_logits"].get_weights()
-                d["model_weights"] = d["model_logits"].state_dict()
+                # agent["model_weights"] = agent["model_logits"].get_weights()
+                agent["model_weights"] = agent["model_logits"].state_dict()
 
                 print("model {0} done alignment".format(index))
 
                 print("model {0} starting training with private data... ".format(index))
                 weights_to_use = None
-                weights_to_use = d["model_weights"]
+                weights_to_use = agent["model_weights"]
 
-                # d["model_classifier"].set_weights(weights_to_use)
-                d["model_classifier"].load_state_dict(weights_to_use)
+                # agent["model_classifier"].set_weights(weights_to_use)
+                agent["model_classifier"].load_state_dict(weights_to_use)
 
-                # d["model_classifier"].fit(self.private_data[index]["X"], 
+                # agent["model_classifier"].fit(self.private_data[index]["X"], 
                 #                           self.private_data[index]["y"],       
                 #                           batch_size = self.private_training_batchsize, 
                 #                           epochs = self.N_private_training_round, 
                 #                           shuffle=True, verbose = 0)
 
-                optimizer = optim.Adam(d["model_classifier"].parameters(), lr = 1e-3)
+                optimizer = optim.Adam(agent["model_classifier"].parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
                 loss = nn.CrossEntropyLoss()
-                train_model(d["model_classifier"], self.private_data[index], loss, batch_size=32, num_epochs=50, optimizer=optimizer)
+                train_model(agent["model_classifier"], self.private_data[index], 
+                    loss, 
+                    batch_size=self.private_training_batchsize, 
+                    num_epochs=self.N_private_training_round,
+                    optimizer=optimizer)
 
-                # d["model_weights"] = d["model_classifier"].get_weights()
-                d["model_weights"] = d["model_classifier"].state_dict()
+                # agent["model_weights"] = agent["model_classifier"].get_weights()
+                agent["model_weights"] = agent["model_classifier"].state_dict()
                 
                 print("model {0} done private training. \n".format(index))
             #END FOR LOOP

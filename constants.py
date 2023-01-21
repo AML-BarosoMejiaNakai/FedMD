@@ -5,9 +5,9 @@ NUM_CLASSES = 100
 BATCH_SIZE = 128     # Higher batch sizes allows for larger learning rates. An empirical heuristic suggests that, when changing
                      # the batch size, learning rate should change by the same factor to have comparable results
 
-LR = 1e-1            # The initial Learning Rate
+LR = 1e-3            # The initial Learning Rate
 MOMENTUM = 0.9       # Hyperparameter for SGD, keep this at 0.9 when using SGD
-WEIGHT_DECAY = 1e-4  # Regularization, you can keep this at the default
+WEIGHT_DECAY = 1e-3  # Regularization, you can keep this at the default
 
 NUM_EPOCHS = 160     # Total number of training epochs (iterations over dataset)
 STEP_SIZE = 10       # How many epochs before decreasing learning rate (if using a step-down policy)

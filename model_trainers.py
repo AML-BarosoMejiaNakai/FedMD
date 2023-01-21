@@ -69,12 +69,13 @@ def train_model(network, dataset, test_dataset, loss_fn, optimizer, batch_size=B
     if returnAcc:
       train_accuracy = running_corrects / len(dataset)
       test_accuracy = test_network(net, test_dataset, batch_size=BATCH_SIZE)
-      accuracy.append([train_accuracy, test_accuracy])
+      accuracy.append({"train_accuracy": train_accuracy, "test_accuracy": test_accuracy})
 
   #end of epoch
   if returnAcc:
     return accuracy
-  
+# end train_model
+
 def test_network(network, test_dataset, batch_size=BATCH_SIZE):
   test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
   net = network.to(DEVICE) # this will bring the network to GPU if DEVICE is cuda

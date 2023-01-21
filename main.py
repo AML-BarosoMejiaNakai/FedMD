@@ -1,32 +1,41 @@
 import argparse
 import os
 import logging
+import sys
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-from torch.utils.data import Subset, DataLoader
-from torch.backends import cudnn
 
 import torchvision
-from torchvision import transforms
-from torchvision.models import alexnet
 
 from constants import * 
 from client import cnn_2layers, cnn_3layers
 from ResNet20 import resnet20
 import CIFAR
+import model_trainers
+from FedMD import FedMD
 
 from PIL import Image
 from tqdm import tqdm
+import wandb
 
 CANDIDATE_MODELS = {"2_layer_CNN": cnn_2layers, 
                     "3_layer_CNN": cnn_3layers,
                     "ResNet20": resnet20} 
 
 
-if __name__ == '__main__':
+
+def main():
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} wandb_api_key")
+        exit()
+    
+    wandb_api_key = sys.argv[1]
+    os.environ["WANDB_API_KEY"] = wandb_api_key
+    os.environ["WANDB_MODE"] = "online"
+
     model_config = CONF_MODELS["models"]
     pre_train_params = CONF_MODELS["pre_train_params"]
     model_saved_dir = CONF_MODELS["model_saved_dir"]
@@ -36,12 +45,11 @@ if __name__ == '__main__':
     private_classes = CONF_MODELS["private_classes"]
     n_classes = len(public_classes) + len(private_classes)
 
-    emnist_data_dir = CONF_MODELS["EMNIST_dir"]    
-    N_parties = CONF_MODELS["N_parties"]
+    N_agents = CONF_MODELS["N_agents"]
     N_samples_per_class = CONF_MODELS["N_samples_per_class"]
 
     N_rounds = CONF_MODELS["N_rounds"]
-    N_alignment = CONF_MODELS["N_alignment"]
+    N_subset = CONF_MODELS["N_subset"]
     N_private_training_round = CONF_MODELS["N_private_training_round"]
     private_training_batchsize = CONF_MODELS["private_training_batchsize"]
     N_logits_matching_round = CONF_MODELS["N_logits_matching_round"]
@@ -57,5 +65,97 @@ if __name__ == '__main__':
 
     # random crop, random horizontal flip, per-pixel normalization 
 
-    train_cifar10, test_cifar10   = CIFAR.load_CIFAR10()
+    print ("=== LOADING CIFAR 10 AND CIFAR 100 ===")
+
+    train_cifar10, test_cifar10   = CIFAR.load_CIFAR10() # train_cifar10 = public_dataset
     train_cifar100, test_cifar100 = CIFAR.load_CIFAR100()
+
+    print ("=== Generating class subsets ===")
+
+    private_train_dataset = CIFAR.generate_class_subset(train_cifar100, private_classes)
+    private_test_dataset  = CIFAR.generate_class_subset(test_cifar100,  private_classes)
+
+    for index, cls_ in enumerate(private_classes):        
+        private_train_dataset.targets[private_train_dataset.targets == cls_] = index + len(public_classes)
+        private_test_dataset.targets[private_test_dataset.targets == cls_] = index + len(public_classes)
+    del index, cls_
+    mod_private_classes = torch.arange(len(private_classes)) + len(public_classes)
+    print (f"=== Splitting private dataset for the {N_agents} agents ===")
+
+    private_data, total_private_data = CIFAR.split_dataset(private_train_dataset, N_agents, N_samples_per_class, classes_in_use=mod_private_classes)
+
+    private_test_dataset = CIFAR.generate_class_subset(private_test_dataset, mod_private_classes)
+
+    run, job_id = init_wandb()
+
+    agents = []
+    for i, item in enumerate(model_config):
+        model_name = item["model_type"]
+        model_params = item["params"]
+        tmp = CANDIDATE_MODELS[model_name](n_classes=n_classes, 
+                                            input_shape=(32,32,3),
+                                            **model_params)
+        print("model {0} : {1}".format(i, model_saved_names[i]))
+        agents.append(tmp)
+        
+        del model_name, model_params, tmp
+    #END FOR LOOP
+    
+    for i, agent in enumerate(agents):
+        optimizer = optim.Adam(agent.parameters(), lr = LR)
+        loss = nn.CrossEntropyLoss()
+        print(f"===== TRAINING {model_saved_names[i]} =====")
+        accuracies = model_trainers.train_model(agent, train_cifar10, test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
+        best_test_acc = max(accuracies, key=lambda x: x["test_accuracy"])["test_accuracy"]
+        wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
+        #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
+
+    fedmd = FedMD(agents, 
+        public_dataset=train_cifar10, 
+        private_data=private_data, 
+        total_private_data=total_private_data, 
+        private_test_data=private_test_dataset,
+        N_rounds=N_rounds,
+        N_subset=N_subset,
+        N_logits_matching_round=N_logits_matching_round,
+        logits_matching_batchsize=logits_matching_batchsize,
+        N_private_training_round=N_private_training_round,
+        private_training_batchsize=private_training_batchsize)
+    
+    collab = fedmd.collaborative_training()
+
+    wandb.finish()
+# end main
+
+
+## -- WANDB --
+
+def init_wandb(run_id=None):
+    group_name = "fedmd"
+
+    configuration = CONF_MODELS
+    agents = ""
+    for agent in configuration["models"]:
+        agents += agent["model_type"][0]
+    job_name = f"M{configuration['N_agents']}_N{configuration['N_rounds']}_S{CONF_MODELS['N_subset']}_lr{LR}_A{agents}"
+
+    run = wandb.init(
+                id = run_id,
+                # Set entity to specify your username or team name
+                entity="aml-30lsiuuu",
+                # Set the project where this run will be logged
+                project='fl_md',
+                group=group_name,
+                # Track hyperparameters and run metadata
+                config=configuration,
+                resume="allow")
+
+    if os.environ["WANDB_MODE"] != "offline" and not wandb.run.resumed:
+        random_number = wandb.run.name.split('-')[-1]
+        wandb.run.name = job_name + '-' + random_number
+        wandb.run.save()
+
+    return run, job_name
+
+if __name__ == '__main__':
+    main()

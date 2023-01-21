@@ -75,9 +75,16 @@ def main():
     private_train_dataset = CIFAR.generate_class_subset(train_cifar100, private_classes)
     private_test_dataset  = CIFAR.generate_class_subset(test_cifar100,  private_classes)
 
+    for index, cls_ in enumerate(private_classes):        
+        private_train_dataset.targets[private_train_dataset.targets == cls_] = index + len(public_classes)
+        private_test_dataset.targets[private_test_dataset.targets == cls_] = index + len(public_classes)
+    del index, cls_
+    mod_private_classes = torch.arange(len(private_classes)) + len(public_classes)
     print (f"=== Splitting private dataset for the {N_agents} agents ===")
 
-    private_data, total_private_data = CIFAR.split_dataset(private_train_dataset, N_agents, N_samples_per_class, private_classes)
+    private_data, total_private_data = CIFAR.split_dataset(private_train_dataset, N_agents, N_samples_per_class, classes_in_use=mod_private_classes)
+
+    private_test_dataset = CIFAR.generate_class_subset(private_test_dataset, mod_private_classes)
 
     run, job_id = init_wandb()
 

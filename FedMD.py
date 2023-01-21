@@ -95,16 +95,17 @@ class FedMD():
             #              batch_size = 32, epochs = 50, shuffle=True, verbose = 0, 
             #              validation_data = [private_test_data["X"], private_test_data["y"]],
             #              callbacks=[EarlyStopping(monitor="val_accuracy", min_delta=0.001, patience=10)])
-            # TODO: Validation set and EarlyStopping!
+            # TODO: EarlyStopping!
+            # OBS: Validation accuracy == our test accuracy since it is the value at the end of each epoch
 
-            accuracy = train_model(model_ub, total_private_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)
+            accuracy = train_model(model_ub, total_private_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 
             
             # self.upper_bounds.append(model_ub.history.history["val_accuracy"][-1])
-            self.upper_bounds.append(accuracy[1])
+            self.upper_bounds.append(accuracy["test_accuracy"]) ## SHOULD BE VAL ACCURACY!
             # self.pooled_train_result.append({"val_acc": model_ub.history.history["val_accuracy"], 
-            #                                  "acc": model_ub.history.history["accuracy"]})
-            self.pooled_train_result.append({"val_acc": accuracy[1], 
-                                             "acc": accuracy[0]})
+            #                                  "acc": model_ub.history.history["accuracy"]}) # "accuracy" == train accuracy
+            self.pooled_train_result.append({"val_acc": accuracy["test_accuracy"], 
+                                             "acc": accuracy["train_accuracy"]})
             
             del model_ub    
         print("the upper bounds are:", self.upper_bounds)
@@ -167,23 +168,34 @@ class FedMD():
                 #                       shuffle=True, verbose = 0)
                 optimizer = optim.Adam(d["model_logits"].parameters(), lr = 1e-3)
                 loss = nn.CrossEntropyLoss()
-                accuracy = train_model(d["model_logits"], alignment_data["X"], loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)
+                train_model(d["model_logits"], alignment_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer)
 
 
-                d["model_weights"] = d["model_logits"].get_weights()
+                # d["model_weights"] = d["model_logits"].get_weights()
+                d["model_weights"] = d["model_logits"].state_dict()
+
                 print("model {0} done alignment".format(index))
 
                 print("model {0} starting training with private data... ".format(index))
                 weights_to_use = None
                 weights_to_use = d["model_weights"]
-                d["model_classifier"].set_weights(weights_to_use)
-                d["model_classifier"].fit(self.private_data[index]["X"], 
-                                          self.private_data[index]["y"],       
-                                          batch_size = self.private_training_batchsize, 
-                                          epochs = self.N_private_training_round, 
-                                          shuffle=True, verbose = 0)
 
-                d["model_weights"] = d["model_classifier"].get_weights()
+                # d["model_classifier"].set_weights(weights_to_use)
+                d["model_classifier"].load_state_dict(weights_to_use)
+
+                # d["model_classifier"].fit(self.private_data[index]["X"], 
+                #                           self.private_data[index]["y"],       
+                #                           batch_size = self.private_training_batchsize, 
+                #                           epochs = self.N_private_training_round, 
+                #                           shuffle=True, verbose = 0)
+
+                optimizer = optim.Adam(d["model_classifier"].parameters(), lr = 1e-3)
+                loss = nn.CrossEntropyLoss()
+                train_model(d["model_classifier"], self.private_data[index], loss, batch_size=32, num_epochs=50, optimizer=optimizer)
+
+                # d["model_weights"] = d["model_classifier"].get_weights()
+                d["model_weights"] = d["model_classifier"].state_dict()
+                
                 print("model {0} done private training. \n".format(index))
             #END FOR LOOP
         

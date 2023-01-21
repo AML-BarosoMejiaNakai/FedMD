@@ -38,8 +38,8 @@ def split_dataset(dataset, N_agents, N_samples_per_class, classes_in_use = None)
     if classes_in_use is None:
         classes_in_use = list(set(dataset.targets))
     labels = torch.tensor(dataset.targets)
-    private_idxs = [torch.tensor([])]*N_agents
-    all_idxs = torch.tensor([])
+    private_idxs = [torch.tensor([], dtype=torch.long)]*N_agents
+    all_idxs = torch.tensor([], dtype=torch.long)
     for cls_ in classes_in_use:
         idxs = torch.nonzero(labels == cls_).flatten()
         samples = torch.multinomial(idxs.double(), N_agents * N_samples_per_class)

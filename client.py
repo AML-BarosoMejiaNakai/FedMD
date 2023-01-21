@@ -4,20 +4,13 @@ import torch.nn as nn
 
 class CNN(nn.Module):
 
-    def init(self, n_classes, n1=128, n2=192, n3=256, dropout_rate=0.2, input_shape=(28, 28), layers=2):
+    def __init__(self, n_classes, n1=128, n2=192, n3=256, dropout_rate=0.2, input_shape=(28, 28), layers=2):
 
         super().__init__()
 
         self.input_shape = input_shape
         self.layers = layers
-
-        # x = Input(input_shape)
-        if len(input_shape) == 2:
-            # y = Reshape((input_shape[0], input_shape[1], 1))(x)
-            in_channels = 1
-        else:
-            # y = Reshape(input_shape)(x)
-            in_channels = input_shape[2]
+        in_channels = 3
 
         # y = Conv2D(filters=n1, kernel_size=(3, 3), strides=1, padding="same", activation=None)(y)
         self.conv1 = torch.nn.Conv2d(in_channels=in_channels, out_channels=n1, kernel_size=(3, 3), stride=1, padding="same")
@@ -52,7 +45,7 @@ class CNN(nn.Module):
             # y = Dropout(dropout_rate)(y)
             self.dropout2 = torch.nn.Dropout(p=dropout_rate)
             
-            fc_in_features = (input_shape[0] - 2) / 2
+            fc_in_features = int(n2 * ((input_shape[-1] - 2) / 2) ** 2)
 
         else:
 
@@ -86,7 +79,7 @@ class CNN(nn.Module):
             # 64x64 -> 15x15
             # 32x32 -> 7x7
             
-            fc_in_features = (input_shape[0] - 4) / 4
+            fc_in_features = int(n3 * ((input_shape[-1] - 4) / 4) ** 2)
 
         #####
 
@@ -111,12 +104,12 @@ class CNN(nn.Module):
 
     def forward(self, x):
        
-        if len(self.input_shape) == 2:
-            # x = Reshape((input_shape[0], input_shape[1], 1))(x)
-            x = x.reshape((self.input_shape[0], self.input_shape[1], 1))
-        else:
-            # y = Reshape(input_shape)(x)
-            x = x.reshape(self.input_shape)
+        # if len(self.input_shape) == 2:
+        #     # x = Reshape((input_shape[0], input_shape[1], 1))(x)
+        #     x = x.reshape((self.input_shape[0], self.input_shape[1], 1))
+        # else:
+        #     # y = Reshape(input_shape)(x)
+        #     x = x.reshape(self.input_shape)
             
         x = self.conv1(x)
         x = self.bn1(x)
@@ -141,6 +134,7 @@ class CNN(nn.Module):
         x = self.flatten(x)
         x = self.fc(x)
         # x = self.softmax(x)
+        return x
 
 
 def cnn_2layers(n_classes, n1=128, n2=256, dropout_rate=0.2, input_shape=(28, 28)):

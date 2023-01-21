@@ -93,7 +93,7 @@ def main():
         model_name = item["model_type"]
         model_params = item["params"]
         tmp = CANDIDATE_MODELS[model_name](n_classes=n_classes, 
-                                            input_shape=(32,32,3),
+                                            input_shape=(3,32,32),
                                             **model_params)
         print("model {0} : {1}".format(i, model_saved_names[i]))
         agents.append(tmp)

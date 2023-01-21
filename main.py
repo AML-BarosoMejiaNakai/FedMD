@@ -65,7 +65,7 @@ def main():
 
     # random crop, random horizontal flip, per-pixel normalization 
 
-    train_cifar10, test_cifar10   = CIFAR.load_CIFAR10()
+    train_cifar10, test_cifar10   = CIFAR.load_CIFAR10() # train_cifar10 = public_dataset
     train_cifar100, test_cifar100 = CIFAR.load_CIFAR100()
 
     private_train_dataset = CIFAR.generate_class_subset(train_cifar100, private_classes)

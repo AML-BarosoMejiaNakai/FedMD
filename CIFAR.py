@@ -1,7 +1,7 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import Subset
+from datasets import CustomSubset as Subset
 
 def load_CIFAR10(train_transform = None, root_dir='./data/cifar10'):
     if train_transform is None:
@@ -36,8 +36,8 @@ def generate_class_subset(dataset, classes):
 
 def split_dataset(dataset, N_agents, N_samples_per_class, classes_in_use = None):
     if classes_in_use is None:
-        classes_in_use = list(set(dataset.dataset.targets))
-    labels = torch.tensor(dataset.dataset.targets)
+        classes_in_use = list(set(dataset.targets))
+    labels = torch.tensor(dataset.targets)
     private_idxs = [torch.tensor([])]*N_agents
     all_idxs = torch.tensor([])
     for cls_ in classes_in_use:

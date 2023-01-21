@@ -28,13 +28,16 @@ CANDIDATE_MODELS = {"2_layer_CNN": cnn_2layers,
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} wandb_api_key")
         exit()
     
     wandb_api_key = sys.argv[1]
     os.environ["WANDB_API_KEY"] = wandb_api_key
     os.environ["WANDB_MODE"] = "online"
+    ckpt_path = 'ckpt'
+    if not os.path.exists(ckpt_path):
+        os.makedirs(ckpt_path)
 
     run_id = None
     if len(sys.argv) == 3:
@@ -108,10 +111,13 @@ def main():
     for i, agent in enumerate(agents):
         train = True
         if resumed:
-            weights = wandb.restore(f"ckpt/{model_saved_names[i]}_initial_pub.pt")
-            if weights is not None:
+            try:
+                weights = wandb.restore(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt")
                 train = False
+                print(f"===== SUCCESFULLY LOADED {model_saved_names[i]} FROM CHECKPOINT =====")
                 agents[i].load_state_dict(torch.load(weights.name))
+            except ValueError:
+                pass
         if train:
             optimizer = optim.Adam(agent.parameters(), lr = LR)
             loss = nn.CrossEntropyLoss()
@@ -119,8 +125,9 @@ def main():
             accuracies = model_trainers.train_model(agent, train_cifar10, test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
             best_test_acc = max(accuracies, key=lambda x: x["test_accuracy"])["test_accuracy"]
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
-            torch.save(agent.state_dict(), f'ckpt/{model_saved_names[i]}_initial_pub.pt')
-            wandb.save(f'ckpt/{model_saved_names[i]}_initial_pub.pt')
+            
+            torch.save(agent.state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
+            wandb.save(f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
 
     fedmd = FedMD(agents, model_saved_names,

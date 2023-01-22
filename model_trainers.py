@@ -7,7 +7,7 @@ from constants import *
 
 import torchvision
 
-def train_model(network, dataset, test_dataset, loss_fn, optimizer, batch_size=BATCH_SIZE, num_epochs=NUM_EPOCHS, scheduler = None, returnAcc = False):
+def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_size=BATCH_SIZE, num_epochs=NUM_EPOCHS, scheduler = None, returnAcc = False):
   # TODO: Implement Accuracy calculation for both validation and training. Also implement early stopping.
   # returned accuracy should be a list where accuracy = [training_accuracy, validation_accuracy]
   train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)

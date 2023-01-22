@@ -57,7 +57,7 @@ class FedMD():
             # OBS: Also passes the validation data and uses EarlyStopping
             # TODO: Early stopping on train_model
 
-            accuracy = train_model(model_A, private_data[i], loss, batch_size=32, num_epochs=25, optimizer=optimizer, returnAcc=True)
+            accuracy = train_model(model_A, private_data[i], test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=25, optimizer=optimizer, returnAcc=True)
             best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])["test_accuracy"]
             wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = best_test_acc
             
@@ -102,7 +102,7 @@ class FedMD():
             # TODO: EarlyStopping!
             # OBS: Validation accuracy == our test accuracy since it is the value at the end of each epoch
 
-            accuracy = train_model(model_ub, total_private_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 
+            accuracy = train_model(model_ub, total_private_data, test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 
             best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])
             wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = best_test_acc["test_accuracy"]
             wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = best_test_acc["train_accuracy"]
@@ -177,7 +177,7 @@ class FedMD():
                 optimizer = optim.Adam(agent["model_logits"].parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
                 loss = nn.CrossEntropyLoss()
                 alignment_data.targets = logits
-                train_model(agent["model_logits"], alignment_data, loss, 
+                train_model(agent["model_logits"], alignment_data, loss_fn=loss, 
                     batch_size=self.logits_matching_batchsize, 
                     num_epochs=self.N_logits_matching_round, 
                     optimizer=optimizer)
@@ -204,7 +204,7 @@ class FedMD():
                 optimizer = optim.Adam(agent["model_classifier"].parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
                 loss = nn.CrossEntropyLoss()
                 train_model(agent["model_classifier"], self.private_data[index], 
-                    loss, 
+                    loss_fn=loss, 
                     batch_size=self.private_training_batchsize, 
                     num_epochs=self.N_private_training_round,
                     optimizer=optimizer)

@@ -36,13 +36,13 @@ def init_wandb(run_id=None):
 
 
 def load_checkpoint(path, model):
-    loaded = True
+    loaded = False
     if wandb.run.resumed:
         try:
             weights = wandb.restore(path)
             model.load_state_dict(torch.load(weights.name))
             print(f"===== SUCCESFULLY LOADED {path} FROM CHECKPOINT =====")
-            train = False
+            loaded = True
         except ValueError:
             print(f"===== CHECKPOINT FOR {path} DOES NOT EXIST =====")            
         except RuntimeError:

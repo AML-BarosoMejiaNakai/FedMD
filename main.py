@@ -113,16 +113,16 @@ def main():
         if resumed:
             try:
                 weights = wandb.restore(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt")
-                train = False
-                print(f"===== SUCCESFULLY LOADED {model_saved_names[i]} FROM CHECKPOINT =====")
                 agents[i].load_state_dict(torch.load(weights.name))
-            except ValueError:
-                pass
+                print(f"===== SUCCESFULLY LOADED {model_saved_names[i]} FROM CHECKPOINT =====")
+                train = False
+            except (RuntimeError, ValueError):
+                print(f"===== CHECKPOINT FOR {model_saved_names[i]} DOES NOT EXIST OR IS CORRUPTED =====")
         if train:
             optimizer = optim.Adam(agent.parameters(), lr = LR)
             loss = nn.CrossEntropyLoss()
             print(f"===== TRAINING {model_saved_names[i]} =====")
-            accuracies = model_trainers.train_model(agent, train_cifar10, test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
+            accuracies = model_trainers.train_model(agent, train_cifar10, test_dataset=test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
             best_test_acc = max(accuracies, key=lambda x: x["test_accuracy"])["test_accuracy"]
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
             

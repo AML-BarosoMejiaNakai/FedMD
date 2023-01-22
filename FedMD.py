@@ -103,9 +103,9 @@ class FedMD():
             # OBS: Validation accuracy == our test accuracy since it is the value at the end of each epoch
 
             accuracy = train_model(model_ub, total_private_data, test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 
-            best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])
-            wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = best_test_acc["test_accuracy"]
-            wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = best_test_acc["train_accuracy"]
+
+            wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = accuracy["test_accuracy"]
+            wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = accuracy["train_accuracy"]
             
 
             # self.upper_bounds.append(model_ub.history.history["val_accuracy"][-1])

@@ -16,6 +16,7 @@ from ResNet20 import resnet20
 import CIFAR
 import model_trainers
 from FedMD import FedMD
+from wandb_utils import *
 
 from PIL import Image
 from tqdm import tqdm
@@ -109,16 +110,8 @@ def main():
     #END FOR LOOP
     
     for i, agent in enumerate(agents):
-        train = True
-        if resumed:
-            try:
-                weights = wandb.restore(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt")
-                agents[i].load_state_dict(torch.load(weights.name))
-                print(f"===== SUCCESFULLY LOADED {model_saved_names[i]} FROM CHECKPOINT =====")
-                train = False
-            except (RuntimeError, ValueError):
-                print(f"===== CHECKPOINT FOR {model_saved_names[i]} DOES NOT EXIST OR IS CORRUPTED =====")
-        if train:
+        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i])
+        if not loaded:
             optimizer = optim.Adam(agent.parameters(), lr = LR)
             loss = nn.CrossEntropyLoss()
             print(f"===== TRAINING {model_saved_names[i]} =====")
@@ -148,37 +141,6 @@ def main():
 # end main
 
 
-## -- WANDB --
-
-def init_wandb(run_id=None):
-    group_name = "fedmd"
-
-    configuration = CONF_MODELS
-    agents = ""
-    for agent in configuration["models"]:
-        agents += agent["model_type"][0]
-    job_name = f"M{configuration['N_agents']}_N{configuration['N_rounds']}_S{CONF_MODELS['N_subset']}_lr{LR}_A{agents}"
-
-    run = wandb.init(
-                id = run_id,
-                # Set entity to specify your username or team name
-                entity="aml-30lsiuuu",
-                # Set the project where this run will be logged
-                project='fl_md',
-                group=group_name,
-                # Track hyperparameters and run metadata
-                config=configuration,
-                resume="allow")
-
-    if os.environ["WANDB_MODE"] != "offline" and not wandb.run.resumed:
-        random_number = wandb.run.name.split('-')[-1]
-        wandb.run.name = job_name + '-' + random_number
-        wandb.run.save()
-        resumed = False
-    if wandb.run.resumed:
-        resumed = True
-
-    return run, job_name, resumed
 
 if __name__ == '__main__':
     main()

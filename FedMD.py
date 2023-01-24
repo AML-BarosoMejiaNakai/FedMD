@@ -99,7 +99,6 @@ class FedMD():
             #              batch_size = 32, epochs = 50, shuffle=True, verbose = 0, 
             #              validation_data = [private_test_data["X"], private_test_data["y"]],
             #              callbacks=[EarlyStopping(monitor="val_accuracy", min_delta=0.001, patience=10)])
-            # TODO: EarlyStopping!
             # OBS: Validation accuracy == our test accuracy since it is the value at the end of each epoch
 
             accuracy = train_model(model_ub, total_private_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 

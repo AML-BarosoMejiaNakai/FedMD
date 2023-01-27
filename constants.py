@@ -34,7 +34,7 @@ CONF_MODELS = {
                     "batch_size": 128, "epochs": 20, "is_shuffle": True, 
                     "verbose": 1},
   "model_saved_dir": None,
-  "model_saved_names" : ["CNN_128_256", "CNN_128_384", "CNN_128_512", 
+  "model_saved_names" : ["CNN_128__256", "CNN_128_384", "CNN_128_512", # The double underscore in the first name is on purpose, don't delete it!
                           "CNN_64_128_256", "CNN_64_128_192", "CNN_128_192_256",
                           "ResNet20_A", "ResNet20_B1", "ResNet20_B2", "ResNet20_B3" ],
   "early_stopping" : True,

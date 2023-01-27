@@ -58,6 +58,7 @@ class FedMD():
             # TODO: Early stopping on train_model
 
             accuracy = train_model(model_A, private_data[i], test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=25, optimizer=optimizer, returnAcc=True)
+            print(accuracy)
             best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])["test_accuracy"]
             wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = best_test_acc
             

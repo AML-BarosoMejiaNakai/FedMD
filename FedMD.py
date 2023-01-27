@@ -57,10 +57,9 @@ class FedMD():
             # OBS: Also passes the validation data and uses EarlyStopping
             # TODO: Early stopping on train_model
 
-            accuracy = train_model(model_A, private_data[i], test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=25, optimizer=optimizer, returnAcc=True)
-            print(accuracy)
-            best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])["test_accuracy"]
-            wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = best_test_acc
+            accuracy = train_model(model_A, private_data[i], test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=25, optimizer=optimizer, log_frequency=10, returnAcc=True)
+            last_test_acc = accuracy[-1]
+            wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc
             
             print("full stack training done")
             
@@ -103,10 +102,10 @@ class FedMD():
             # TODO: EarlyStopping!
             # OBS: Validation accuracy == our test accuracy since it is the value at the end of each epoch
 
-            accuracy = train_model(model_ub, total_private_data, test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 
-
-            wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = accuracy["test_accuracy"]
-            wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = accuracy["train_accuracy"]
+            accuracy = train_model(model_ub, total_private_data, test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)
+            last_acc = accuracy[-1]
+            wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = last_acc["test_accuracy"]
+            wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = last_acc["train_accuracy"]
             
 
             # self.upper_bounds.append(model_ub.history.history["val_accuracy"][-1])

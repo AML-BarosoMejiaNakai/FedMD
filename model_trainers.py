@@ -7,10 +7,11 @@ from constants import *
 
 import torchvision
 
-def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_size=BATCH_SIZE, num_epochs=NUM_EPOCHS, scheduler = None, returnAcc = False):
+def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_size=BATCH_SIZE, num_epochs=NUM_EPOCHS, scheduler = None, log_frequency=LOG_FREQUENCY, returnAcc = False):
   # TODO: Implement Accuracy calculation for both validation and training. Also implement early stopping.
   # returned accuracy should be a list where accuracy = [training_accuracy, validation_accuracy]
-  train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)
+  drop_last = len(dataset) // batch_size > 1
+  train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=drop_last)
   # By default, everything is loaded to cpu
   net = network.to(DEVICE) # this will bring the network to GPU if DEVICE is cuda
 
@@ -48,12 +49,12 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
       loss = loss_fn(outputs, labels)
 
       # Log loss
-      if current_step % LOG_FREQUENCY == 0:
+      if current_step % log_frequency == 0:
         print('Step {}, Loss {}'.format(current_step, loss.item()))
       _, preds = torch.max(outputs.data, 1)
       # Update Corrects
       running_corrects += torch.sum(preds == labels.data).data.item()
-
+      
       # Compute gradients for each layer and update weights
       loss.backward()  # backward pass: computes gradients
       optimizer.step() # update weights based on accumulated gradients
@@ -68,7 +69,7 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
     # scheduler.step()
     if returnAcc:
       train_accuracy = running_corrects / len(dataset)
-      test_accuracy = test_network(net, test_dataset, batch_size=BATCH_SIZE)
+      test_accuracy = test_network(net, test_dataset, batch_size=batch_size)
       accuracy.append({"train_accuracy": train_accuracy, "test_accuracy": test_accuracy})
 
   #end of epoch

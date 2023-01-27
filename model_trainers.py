@@ -77,7 +77,8 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
             
             # Early stopping
             if early_stop is not None and early_stop(total_loss):             
-                break
+                if returnAcc:
+                    return accuracy
     #end of epoch
     if returnAcc:
         return accuracy
@@ -109,6 +110,7 @@ def test_network(network, test_dataset, batch_size=BATCH_SIZE):
     # Calculate Accuracy
     accuracy = running_corrects / float(len(test_dataset))
     return accuracy
+
 
 def run_dataset(network, dataset, batch_size=BATCH_SIZE):
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4)

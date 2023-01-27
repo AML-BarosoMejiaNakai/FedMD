@@ -37,8 +37,10 @@ def main():
     os.environ["WANDB_API_KEY"] = wandb_api_key
     os.environ["WANDB_MODE"] = "online"
     ckpt_path = 'ckpt'
-    if not os.path.exists(ckpt_path):
-        os.makedirs(ckpt_path)
+    paths = [ckpt_path, f"{ckpt_path}/ub"]
+    for path in paths:
+        if not os.path.exists(path):
+            os.makedirs(path)
 
     run_id = None
     if len(sys.argv) == 3:
@@ -116,12 +118,15 @@ def main():
             loss = nn.CrossEntropyLoss()
             print(f"===== TRAINING {model_saved_names[i]} =====")
             accuracies = model_trainers.train_model(agent, train_cifar10, test_dataset=test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
-            best_test_acc = max(accuracies, key=lambda x: x["test_accuracy"])["test_accuracy"]
-            wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
+            wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = accuracies[-1]["test_accuracy"]
             
             torch.save(agent.state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             wandb.save(f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
+        else:
+            test_acc = model_trainers.test_network(network=agents[i], test_dataset=test_cifar10, batch_size=128)
+            wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = test_acc
+
 
     fedmd = FedMD(agents, model_saved_names,
         public_dataset=train_cifar10, 

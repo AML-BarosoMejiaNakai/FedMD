@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Subset, DataLoader
+from early_stopping import EarlyStop
 from torch.backends import cudnn
 from constants import *
 
@@ -16,6 +17,7 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
     net = network.to(DEVICE) # this will bring the network to GPU if DEVICE is cuda
 
     cudnn.benchmark # Calling this optimizes runtime
+    early_stopping = EarlyStop(patience=10, min_delta=0.001)
 
     current_step = 0
     # Start iterating over the epochs
@@ -71,11 +73,15 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
                 train_accuracy = running_corrects / len(dataset)
                 test_accuracy = test_network(net, test_dataset, batch_size=batch_size)
                 accuracy.append({"train_accuracy": train_accuracy, "test_accuracy": test_accuracy})
-
+            
+            # Early stopping
+            if early_stopping.early_stop(total_loss):             
+              break
     #end of epoch
     if returnAcc:
         return accuracy
     # end train_model
+   
 
 def test_network(network, test_dataset, batch_size=BATCH_SIZE):
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
@@ -86,6 +92,7 @@ def test_network(network, test_dataset, batch_size=BATCH_SIZE):
     for images, labels in test_dataloader:
         images = images.to(DEVICE)
         labels = labels.to(DEVICE)
+
 
         # Forward Pass
         outputs = net(images)
@@ -119,7 +126,6 @@ def run_dataset(network, dataset, batch_size=BATCH_SIZE):
 
         # Get predictions
         total_values = torch.cat((total_values.to(DEVICE), outputs.data))
-        # Update Corrects
 
     # Calculate Accuracy
     return total_values

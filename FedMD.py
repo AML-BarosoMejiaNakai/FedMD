@@ -37,7 +37,7 @@ class FedMD():
 
         print("start model initialization: ")
         for i in range(self.N_agents):
-            print("model ", i)
+            print("Model ", self.model_saved_names[i])
             model_A = copy.deepcopy(agents[i]) # Was clone_model
             # model_A.set_weights(agents[i].get_weights())
             model_A.load_state_dict(agents[i].state_dict())
@@ -86,6 +86,7 @@ class FedMD():
         self.upper_bounds = []
         self.pooled_train_result = []
         for model in agents:
+            print("UB - Model ", self.model_saved_names[i])
             model_ub = copy.deepcopy(model)
             # model_ub.set_weights(model.get_weights())
             model_ub.load_state_dict(model.state_dict())

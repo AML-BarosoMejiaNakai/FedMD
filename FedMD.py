@@ -37,7 +37,7 @@ class FedMD():
 
         print("start model initialization: ")
         for i in range(self.N_agents):
-            print("model ", i)
+            print("Model ", self.model_saved_names[i])
             model_A = copy.deepcopy(agents[i]) # Was clone_model
             # model_A.set_weights(agents[i].get_weights())
             model_A.load_state_dict(agents[i].state_dict())
@@ -57,9 +57,9 @@ class FedMD():
             # OBS: Also passes the validation data and uses EarlyStopping
             # TODO: Early stopping on train_model
 
-            accuracy = train_model(model_A, private_data[i], loss, batch_size=32, num_epochs=25, optimizer=optimizer, returnAcc=True)
-            best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])["test_accuracy"]
-            wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = best_test_acc
+            accuracy = train_model(model_A, private_data[i], test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=25, optimizer=optimizer, log_frequency=10, returnAcc=True)
+            last_test_acc = accuracy[-1]
+            wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc["test_accuracy"]
             
             print("full stack training done")
             
@@ -86,6 +86,7 @@ class FedMD():
         self.upper_bounds = []
         self.pooled_train_result = []
         for model in agents:
+            print("UB - Model ", self.model_saved_names[i])
             model_ub = copy.deepcopy(model)
             # model_ub.set_weights(model.get_weights())
             model_ub.load_state_dict(model.state_dict())
@@ -101,18 +102,18 @@ class FedMD():
             #              callbacks=[EarlyStopping(monitor="val_accuracy", min_delta=0.001, patience=10)])
             # OBS: Validation accuracy == our test accuracy since it is the value at the end of each epoch
 
-            accuracy = train_model(model_ub, total_private_data, loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)[-1] 
-            best_test_acc = max(accuracy, key=lambda x: x["test_accuracy"])
-            wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = best_test_acc["test_accuracy"]
-            wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = best_test_acc["train_accuracy"]
+            accuracy = train_model(model_ub, total_private_data, test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=50, optimizer=optimizer, returnAcc=True)
+            last_acc = accuracy[-1]
+            wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = last_acc["test_accuracy"]
+            wandb.run.summary[f"{model_saved_names[i]}_ub_train_acc"] = last_acc["train_accuracy"]
             
 
             # self.upper_bounds.append(model_ub.history.history["val_accuracy"][-1])
-            self.upper_bounds.append(accuracy["test_accuracy"]) ## SHOULD BE VAL ACCURACY!
+            self.upper_bounds.append(last_acc["test_accuracy"]) ## SHOULD BE VAL ACCURACY!
             # self.pooled_train_result.append({"val_acc": model_ub.history.history["val_accuracy"], 
             #                                  "acc": model_ub.history.history["accuracy"]}) # "accuracy" == train accuracy
-            self.pooled_train_result.append({"test_acc": accuracy["test_accuracy"], 
-                                             "acc": accuracy["train_accuracy"]})
+            self.pooled_train_result.append({"test_acc": last_acc["test_accuracy"], 
+                                             "acc": last_acc["train_accuracy"]})
             
             del model_ub    
         print("the upper bounds are:", self.upper_bounds)
@@ -176,7 +177,7 @@ class FedMD():
                 optimizer = optim.Adam(agent["model_logits"].parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
                 loss = nn.CrossEntropyLoss()
                 alignment_data.targets = logits
-                train_model(agent["model_logits"], alignment_data, loss, 
+                train_model(agent["model_logits"], alignment_data, loss_fn=loss, 
                     batch_size=self.logits_matching_batchsize, 
                     num_epochs=self.N_logits_matching_round, 
                     optimizer=optimizer)
@@ -203,7 +204,7 @@ class FedMD():
                 optimizer = optim.Adam(agent["model_classifier"].parameters(), lr = LR, weight_decay=WEIGHT_DECAY)
                 loss = nn.CrossEntropyLoss()
                 train_model(agent["model_classifier"], self.private_data[index], 
-                    loss, 
+                    loss_fn=loss, 
                     batch_size=self.private_training_batchsize, 
                     num_epochs=self.N_private_training_round,
                     optimizer=optimizer)

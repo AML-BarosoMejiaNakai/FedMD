@@ -16,6 +16,7 @@ from ResNet20 import resnet20
 import CIFAR
 import model_trainers
 from FedMD import FedMD
+from wandb_utils import *
 
 from PIL import Image
 from tqdm import tqdm
@@ -28,13 +29,16 @@ CANDIDATE_MODELS = {"2_layer_CNN": cnn_2layers,
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} wandb_api_key")
         exit()
     
     wandb_api_key = sys.argv[1]
     os.environ["WANDB_API_KEY"] = wandb_api_key
     os.environ["WANDB_MODE"] = "online"
+    ckpt_path = 'ckpt'
+    if not os.path.exists(ckpt_path):
+        os.makedirs(ckpt_path)
 
     run_id = None
     if len(sys.argv) == 3:
@@ -106,21 +110,17 @@ def main():
     #END FOR LOOP
     
     for i, agent in enumerate(agents):
-        train = True
-        if resumed:
-            weights = wandb.restore(f"ckpt/{model_saved_names[i]}_initial_pub.pt")
-            if weights is not None:
-                train = False
-                agents[i].load_state_dict(torch.load(weights.name))
-        if train:
+        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i])
+        if not loaded:
             optimizer = optim.Adam(agent.parameters(), lr = LR)
             loss = nn.CrossEntropyLoss()
             print(f"===== TRAINING {model_saved_names[i]} =====")
-            accuracies = model_trainers.train_model(agent, train_cifar10, test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
+            accuracies = model_trainers.train_model(agent, train_cifar10, test_dataset=test_cifar10, loss_fn=loss, optimizer=optimizer, batch_size=128, num_epochs=20, returnAcc=True)
             best_test_acc = max(accuracies, key=lambda x: x["test_accuracy"])["test_accuracy"]
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = best_test_acc
-            torch.save(agent.state_dict(), f'ckpt/{model_saved_names[i]}_initial_pub.pt')
-            wandb.save(f'ckpt/{model_saved_names[i]}_initial_pub.pt')
+            
+            torch.save(agent.state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
+            wandb.save(f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
 
     fedmd = FedMD(agents, model_saved_names,
@@ -141,37 +141,6 @@ def main():
 # end main
 
 
-## -- WANDB --
-
-def init_wandb(run_id=None):
-    group_name = "fedmd"
-
-    configuration = CONF_MODELS
-    agents = ""
-    for agent in configuration["models"]:
-        agents += agent["model_type"][0]
-    job_name = f"M{configuration['N_agents']}_N{configuration['N_rounds']}_S{CONF_MODELS['N_subset']}_lr{LR}_A{agents}"
-
-    run = wandb.init(
-                id = run_id,
-                # Set entity to specify your username or team name
-                entity="aml-30lsiuuu",
-                # Set the project where this run will be logged
-                project='fl_md',
-                group=group_name,
-                # Track hyperparameters and run metadata
-                config=configuration,
-                resume="allow")
-
-    if os.environ["WANDB_MODE"] != "offline" and not wandb.run.resumed:
-        random_number = wandb.run.name.split('-')[-1]
-        wandb.run.name = job_name + '-' + random_number
-        wandb.run.save()
-        resumed = False
-    if wandb.run.resumed:
-        resumed = True
-
-    return run, job_name, resumed
 
 if __name__ == '__main__':
     main()

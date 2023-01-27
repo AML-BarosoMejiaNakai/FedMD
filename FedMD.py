@@ -150,7 +150,7 @@ class FedMD:
                     loss_fn=loss,
                     optimizer=optimizer,
                     early_stop=early_stopping,
-                    batch_size=32,
+                    batch_size=BATCH_SIZE,
                     num_epochs=50,
                     returnAcc=True,
                 )

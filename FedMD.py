@@ -59,7 +59,7 @@ class FedMD():
 
             accuracy = train_model(model_A, private_data[i], test_dataset=private_test_data, loss_fn=loss, batch_size=32, num_epochs=25, optimizer=optimizer, log_frequency=10, returnAcc=True)
             last_test_acc = accuracy[-1]
-            wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc
+            wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc["test_accuracy"]
             
             print("full stack training done")
             
@@ -109,11 +109,11 @@ class FedMD():
             
 
             # self.upper_bounds.append(model_ub.history.history["val_accuracy"][-1])
-            self.upper_bounds.append(accuracy["test_accuracy"]) ## SHOULD BE VAL ACCURACY!
+            self.upper_bounds.append(last_acc["test_accuracy"]) ## SHOULD BE VAL ACCURACY!
             # self.pooled_train_result.append({"val_acc": model_ub.history.history["val_accuracy"], 
             #                                  "acc": model_ub.history.history["accuracy"]}) # "accuracy" == train accuracy
-            self.pooled_train_result.append({"test_acc": accuracy["test_accuracy"], 
-                                             "acc": accuracy["train_accuracy"]})
+            self.pooled_train_result.append({"test_acc": last_acc["test_accuracy"], 
+                                             "acc": last_acc["train_accuracy"]})
             
             del model_ub    
         print("the upper bounds are:", self.upper_bounds)

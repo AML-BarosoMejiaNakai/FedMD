@@ -14,7 +14,7 @@ STEP_SIZE = 10       # How many epochs before decreasing learning rate (if using
 GAMMA = 0.1          # Multiplicative factor for learning rate step-down
 
 LOG_FREQUENCY = 1000
-
+SEED = 21032000
 
 # ====================================
 

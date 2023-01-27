@@ -86,7 +86,7 @@ class FedMD:
             last_test_acc = accuracy[-1]
             wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc["test_accuracy"]
 
-            print("full stack training done")
+            print(f"Full stack training done. Accuracy: {last_test_acc['test_accuracy']}")
 
             # model_A = remove_last_layer(model_A, loss="mean_absolute_error")
             # model_A = nn.Sequential(*(list(model_A.children())[:-1])) # Removing last layer of the model_A
@@ -108,7 +108,7 @@ class FedMD:
             del model_A
         # END FOR LOOP
 
-        print("calculate the theoretical upper bounds for participants: ")
+        print("Calculate the theoretical upper bounds for participants: ")
 
         self.upper_bounds = []
         self.pooled_train_result = []
@@ -175,7 +175,7 @@ class FedMD:
             #                                          self.N_subset)
             alignment_data = stratified_sampling(self.public_dataset, self.N_subset)
 
-            print("round ", r)
+            print(f"Round {r}/{self.N_rounds}")
 
             print("update logits ... ")
             # update logits
@@ -197,8 +197,8 @@ class FedMD:
                 # y_pred = agent["model_classifier"].predict(self.private_test_data["X"], verbose = 0).argmax(axis = 1)
                 accuracy = test_network(network=agent, test_dataset=alignment_data)
 
-                print(f"Model {index} got accuracy of {accuracy}")
-                wandb.log({f"{self.model_saved_names[index]}_test_acc": accuracy * 100}, step=r)
+                print(f"Model {self.model_saved_names[index]} got accuracy of {accuracy}")
+                wandb.log({f"{self.model_saved_names[index]}_test_acc": accuracy}, step=r)
                 collaboration_performance[index].append(accuracy)
 
             r += 1
@@ -207,9 +207,7 @@ class FedMD:
 
             print("updates models ...")
             for index, agent in enumerate(self.collaborative_agents):
-                print(
-                    "model {0} starting alignment with public logits... ".format(index)
-                )
+                print(f"Model {self.model_saved_names[index]} starting alignment with public logits... ")
 
                 weights_to_use = None
                 weights_to_use = agent["model_weights"]
@@ -237,9 +235,9 @@ class FedMD:
                 # agent["model_weights"] = agent["model_logits"].get_weights()
                 agent["model_weights"] = agent["model_logits"].state_dict()
 
-                print("model {0} done alignment".format(index))
+                print(f"Model {self.model_saved_names[index]} done alignment")
 
-                print("model {0} starting training with private data... ".format(index))
+                print(f"Model {self.model_saved_names[index]} starting training with private data... ")
                 weights_to_use = None
                 weights_to_use = agent["model_weights"]
 
@@ -270,7 +268,7 @@ class FedMD:
                 # agent["model_weights"] = agent["model_classifier"].get_weights()
                 agent["model_weights"] = agent["model_classifier"].state_dict()
 
-                print("model {0} done private training. \n".format(index))
+                print(f"Model {self.model_saved_names[index]} done private training. \n")
             # END FOR LOOP
 
         # END WHILE LOOP

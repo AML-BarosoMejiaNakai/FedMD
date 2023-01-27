@@ -8,7 +8,7 @@ from constants import *
 
 import torchvision
 
-def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_size=BATCH_SIZE, num_epochs=NUM_EPOCHS, scheduler = None, log_frequency=LOG_FREQUENCY, returnAcc = False):
+def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_size=BATCH_SIZE, num_epochs=NUM_EPOCHS, scheduler = None, log_frequency=LOG_FREQUENCY, returnAcc = False, early_stop=None):
     # TODO: Implement Accuracy calculation for both validation and training. Also implement early stopping.
     # returned accuracy should be a list where accuracy = [training_accuracy, validation_accuracy]
     drop_last = len(dataset) // batch_size > 1
@@ -17,7 +17,6 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
     net = network.to(DEVICE) # this will bring the network to GPU if DEVICE is cuda
 
     cudnn.benchmark # Calling this optimizes runtime
-    early_stopping = EarlyStop(patience=10, min_delta=0.001)
 
     current_step = 0
     # Start iterating over the epochs
@@ -31,6 +30,7 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
         else:
             print('Starting epoch {}/{}'.format(epoch+1, num_epochs))
 
+        total_loss = 0
         i = 0
         # Iterate over the dataset
         for images, labels in train_dataloader:
@@ -49,6 +49,7 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
 
             # Compute loss based on output and ground truth
             loss = loss_fn(outputs, labels)
+            total_loss += loss
 
             # Log loss
             if current_step % log_frequency == 0:
@@ -75,13 +76,13 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
                 accuracy.append({"train_accuracy": train_accuracy, "test_accuracy": test_accuracy})
             
             # Early stopping
-            if early_stopping.early_stop(total_loss):             
-              break
+            if early_stop is not None and early_stop(total_loss):             
+                break
     #end of epoch
     if returnAcc:
         return accuracy
     # end train_model
-   
+
 
 def test_network(network, test_dataset, batch_size=BATCH_SIZE):
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)

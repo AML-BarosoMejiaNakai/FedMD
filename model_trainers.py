@@ -70,16 +70,19 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
 
             # Step the scheduler
             # scheduler.step()
-            if returnAcc:
-                train_accuracy = running_corrects / len(dataset)
-                test_accuracy = test_network(net, test_dataset, batch_size=batch_size)
-                accuracy.append({"train_accuracy": train_accuracy, "test_accuracy": test_accuracy})
             
             # Early stopping
             if early_stop is not None and early_stop(total_loss):             
                 if returnAcc:
                     return accuracy
-    #end of epoch
+                else:
+                    return
+        # end of epoch (all batches analyzed)
+        if returnAcc:
+            train_accuracy = running_corrects / len(dataset)
+            test_accuracy = test_network(net, test_dataset, batch_size=batch_size)
+            accuracy.append({"train_accuracy": train_accuracy, "test_accuracy": test_accuracy})
+    #end of epochs
     if returnAcc:
         return accuracy
     # end train_model

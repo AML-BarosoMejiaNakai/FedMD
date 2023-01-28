@@ -159,7 +159,7 @@ class FedMD:
                 wandb.save(f'ckpt/ub/{model_saved_names[i]}_ub.pt')
                 last_acc = accuracy[-1]["test_accuracy"]
             else:
-                last_acc = test_network(model_ub, private_test_data, 32)
+                last_acc = test_network(model_ub, private_test_data, BATCH_SIZE)
 
             wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = last_acc
 
@@ -191,13 +191,13 @@ class FedMD:
 
             print("update logits ... ")
             # update logits
-            logits = 0
+            logits = torch.zeros(len(alignment_data))
             for agent in self.collaborative_agents:
                 # agent["model_logits"].set_weights(agent["model_weights"])
                 agent["model_logits"].load_state_dict(agent["model_weights"])
                 # logits += agent["model_logits"].predict(alignment_data["X"], verbose = 0)
                 model_logits = run_dataset(agent["model_logits"], alignment_data)
-                model_logits = torch.max(model_logits, 1)
+                model_logits, _ = torch.max(model_logits, 1)
                 logits += model_logits
 
             logits /= self.N_agents

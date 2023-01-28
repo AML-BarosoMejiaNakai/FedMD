@@ -159,7 +159,7 @@ class FedMD:
                 wandb.save(f'ckpt/ub/{model_saved_names[i]}_ub.pt')
                 last_acc = accuracy[-1]["test_accuracy"]
             else:
-                last_acc = test_network(model_ub, private_test_data, BATCH_SIZE)
+                last_acc = test_network(model_ub, private_test_data, 32)
 
             wandb.run.summary[f"{model_saved_names[i]}_ub_test_acc"] = last_acc
 
@@ -198,7 +198,7 @@ class FedMD:
                 # logits += agent["model_logits"].predict(alignment_data["X"], verbose = 0)
                 model_logits = run_dataset(agent["model_logits"], alignment_data)
                 model_logits, _ = torch.max(model_logits, 1)
-                logits += model_logits
+                logits += model_logits.to('cpu')
 
             logits /= self.N_agents
 
@@ -207,7 +207,7 @@ class FedMD:
 
             for index, agent in enumerate(self.collaborative_agents):
                 # y_pred = agent["model_classifier"].predict(self.private_test_data["X"], verbose = 0).argmax(axis = 1)
-                accuracy = test_network(network=agent, test_dataset=alignment_data)
+                accuracy = test_network(network=agent["model_classifier"], test_dataset=alignment_data)
 
                 print(f"Model {self.model_saved_names[index]} got accuracy of {accuracy}")
                 wandb.log({f"{self.model_saved_names[index]}_test_acc": accuracy}, step=r)

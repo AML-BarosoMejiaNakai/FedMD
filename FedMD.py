@@ -155,7 +155,7 @@ class FedMD:
                     returnAcc=True,
                 )
 
-                torch.save(model_A.state_dict(), f'ckpt/ub/{model_saved_names[i]}_ub.pt')
+                torch.save(model_ub.state_dict(), f'ckpt/ub/{model_saved_names[i]}_ub.pt')
                 wandb.save(f'ckpt/ub/{model_saved_names[i]}_ub.pt')
                 last_acc = accuracy[-1]["test_accuracy"]
             else:

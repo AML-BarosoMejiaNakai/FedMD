@@ -191,23 +191,22 @@ class FedMD:
 
             print("update logits ... ")
             # update logits
-            logits = torch.zeros(len(alignment_data))
+            logits = 0
             for agent in self.collaborative_agents:
                 # agent["model_logits"].set_weights(agent["model_weights"])
                 agent["model_logits"].load_state_dict(agent["model_weights"])
                 # logits += agent["model_logits"].predict(alignment_data["X"], verbose = 0)
                 model_logits = run_dataset(agent["model_logits"], alignment_data)
-                model_logits, _ = torch.max(model_logits, 1)
                 logits += model_logits.to('cpu')
 
             logits /= self.N_agents
-
+            
             # test performance
             print("test performance ... ")
 
             for index, agent in enumerate(self.collaborative_agents):
                 # y_pred = agent["model_classifier"].predict(self.private_test_data["X"], verbose = 0).argmax(axis = 1)
-                accuracy = test_network(network=agent["model_classifier"], test_dataset=alignment_data)
+                accuracy = test_network(network=agent["model_classifier"], test_dataset=self.private_test_data)
 
                 print(f"Model {self.model_saved_names[index]} got accuracy of {accuracy}")
                 wandb.log({f"{self.model_saved_names[index]}_test_acc": accuracy}, step=r)
@@ -233,12 +232,12 @@ class FedMD:
                 optimizer = optim.Adam(
                     agent["model_logits"].parameters(), lr=LR, weight_decay=WEIGHT_DECAY
                 )
-                loss = nn.CrossEntropyLoss()
+                logits_loss = nn.L1Loss()
                 alignment_data.targets = logits
                 train_model(
                     agent["model_logits"],
                     alignment_data,
-                    loss_fn=loss,
+                    loss_fn=logits_loss,
                     batch_size=self.logits_matching_batchsize,
                     num_epochs=self.N_logits_matching_round,
                     optimizer=optimizer,

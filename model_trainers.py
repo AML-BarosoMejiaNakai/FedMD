@@ -6,8 +6,6 @@ from early_stopping import EarlyStop
 from torch.backends import cudnn
 from constants import *
 
-import torchvision
-
 def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_size=BATCH_SIZE, num_epochs=NUM_EPOCHS, scheduler = None, log_frequency=LOG_FREQUENCY, returnAcc = False, early_stop=None):
     # TODO: Implement Accuracy calculation for both validation and training. Also implement early stopping.
     # returned accuracy should be a list where accuracy = [training_accuracy, validation_accuracy]
@@ -56,7 +54,8 @@ def train_model(network, dataset, loss_fn, optimizer, test_dataset=None, batch_s
                 print('Step {}, Loss {}'.format(current_step, loss.item()))
             _, preds = torch.max(outputs.data, 1)
             # Update Corrects
-            running_corrects += torch.sum(preds == labels.data).data.item()
+            if returnAcc:
+                running_corrects += torch.sum(preds == labels.data).data.item()
             
             # Compute gradients for each layer and update weights
             loss.backward()  # backward pass: computes gradients
@@ -106,6 +105,7 @@ def test_network(network, test_dataset, batch_size=BATCH_SIZE):
 
         # Get predictions
         _, preds = torch.max(outputs.data, 1)
+        print(outputs, preds, labels)
 
         # Update Corrects
         running_corrects += torch.sum(preds == labels.data).data.item()

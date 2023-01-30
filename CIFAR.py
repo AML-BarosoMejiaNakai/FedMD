@@ -47,7 +47,7 @@ def split_dataset(dataset, N_agents, N_samples_per_class, classes_in_use = None,
     for cls_ in classes_in_use:
         idxs = torch.nonzero(labels == cls_).flatten()
         samples = torch.multinomial(torch.ones(idxs.size()), N_agents * N_samples_per_class)
-        all_idxs = torch.cat((all_idxs, idxs))
+        all_idxs = torch.cat((all_idxs, idxs[samples]))
         for i in range(N_agents):
             idx_agent = idxs[samples[i*N_samples_per_class : (i+1)*N_samples_per_class]]
             private_idxs[i] = torch.cat((private_idxs[i], idx_agent))

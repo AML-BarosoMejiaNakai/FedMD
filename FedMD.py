@@ -98,7 +98,7 @@ class FedMD:
             else:
                 test_acc = test_network(model_A, private_test_data, 32)
                 wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = test_acc
-                self.init_result[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc["test_accuracy"]
+                self.init_result[f"{model_saved_names[i]}_initial_test_acc"] = test_acc
             # end if load_checkpoint
 
             self.collaborative_agents.append({

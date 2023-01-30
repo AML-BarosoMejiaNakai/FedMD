@@ -205,14 +205,18 @@ class FedMD:
             # test performance
             print("test performance ... ")
 
+            performances = {}
+
             for index, agent in enumerate(self.collaborative_agents):
                 # y_pred = agent["model_classifier"].predict(self.private_test_data["X"], verbose = 0).argmax(axis = 1)
                 accuracy = test_network(network=agent["model_classifier"], test_dataset=self.private_test_data)
 
                 print(f"Model {self.model_saved_names[index]} got accuracy of {accuracy}")
-                wandb.log({f"{self.model_saved_names[index]}_test_acc": accuracy}, step=r)
+                performances[f"{self.model_saved_names[index]}_test_acc"] = accuracy
                 collaboration_performance[index].append(accuracy)
-
+            
+            wandb.log(performances)
+            
             r += 1
             if r > self.N_rounds:
                 break

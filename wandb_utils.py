@@ -35,11 +35,11 @@ def init_wandb(run_id=None):
     return run, job_name, resumed
 
 
-def load_checkpoint(path, model):
+def load_checkpoint(path, model, restore_path = None):
     loaded = False
     if wandb.run.resumed:
         try:
-            weights = wandb.restore(path)
+            weights = wandb.restore(path, run_path=restore_path)
             model.load_state_dict(torch.load(weights.name))
             print(f"===== SUCCESFULLY LOADED {path} FROM CHECKPOINT =====")
             loaded = True

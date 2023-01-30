@@ -28,6 +28,7 @@ class FedMD:
         logits_matching_batchsize,
         N_private_training_round,
         private_training_batchsize,
+        restore_path=None
     ):
 
         self.N_agents = len(agents)
@@ -51,7 +52,7 @@ class FedMD:
             print("Model ", self.model_saved_names[i])
             model_A = copy.deepcopy(agents[i])  # Was clone_model
             # model_A.set_weights(agents[i].get_weights())
-            if not wandb_utils.load_checkpoint(f"ckpt/{self.model_saved_names[i]}_initial_pri.pt", model_A):
+            if not wandb_utils.load_checkpoint(f"ckpt/{self.model_saved_names[i]}_initial_pri.pt", model_A, restore_path):
                 model_A.load_state_dict(agents[i].state_dict())
                 # model_A.compile(optimizer=tf.keras.optimizers.Adam(lr = LR),
                 #                      loss = "sparse_categorical_crossentropy",
@@ -123,7 +124,7 @@ class FedMD:
         for i, model in enumerate(agents):
             print(f"UB - Model {self.model_saved_names[i]}")
             model_ub = copy.deepcopy(model)
-            if not wandb_utils.load_checkpoint(f"ckpt/ub/{self.model_saved_names[i]}_ub.pt", model_ub):
+            if not wandb_utils.load_checkpoint(f"ckpt/ub/{self.model_saved_names[i]}_ub.pt", model_ub, restore_path):
                 # model_ub.set_weights(model.get_weights())
                 model_ub.load_state_dict(model.state_dict())
                 # model_ub.compile(optimizer=tf.keras.optimizers.Adam(lr = LR),

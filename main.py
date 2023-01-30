@@ -1,6 +1,6 @@
 import argparse
 import os
-import logging
+import argparse
 import sys
 
 import torch
@@ -26,14 +26,27 @@ CANDIDATE_MODELS = {"2_layer_CNN": cnn_2layers,
                     "3_layer_CNN": cnn_3layers,
                     "ResNet20": resnet20} 
 
-
+def parseArg():
+    parser = argparse.ArgumentParser(description='FedMD, a federated learning framework. \
+    Participants are training collaboratively. ')
+    parser.add_argument('-wandb', metavar='wandb', nargs=1, 
+                        help='the wandb API key.'
+                       )
+    parser.add_argument('-run_id', metavar='run_id', nargs=1, 
+                        help='the wandb run id to resume.'
+                       )
+    parser.add_argument('-restore_path', metavar='restore_path', nargs='*', 
+                        help='the wandb project path to restore files.'
+                       )
+    args = None
+    if len(sys.argv) > 1:
+        args = parser.parse_args(sys.argv[1:])
+    return args
 
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} wandb_api_key")
-        exit()
+    args = parseArg()    
     
-    wandb_api_key = sys.argv[1]
+    wandb_api_key = args.wandb
     os.environ["WANDB_API_KEY"] = wandb_api_key
     os.environ["WANDB_MODE"] = "online"
     ckpt_path = 'ckpt'
@@ -42,9 +55,8 @@ def main():
         if not os.path.exists(path):
             os.makedirs(path)
 
-    run_id = None
-    if len(sys.argv) == 3:
-        run_id = sys.argv[2]
+    run_id = args.run_id
+    restore_path = args.restore_path
 
     model_config = CONF_MODELS["models"]
     pre_train_params = CONF_MODELS["pre_train_params"]
@@ -112,7 +124,7 @@ def main():
     #END FOR LOOP
     
     for i, agent in enumerate(agents):
-        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i])
+        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i], restore_path)
         if not loaded:
             optimizer = optim.Adam(agent.parameters(), lr = LR)
             loss = nn.CrossEntropyLoss()
@@ -146,7 +158,8 @@ def main():
         N_logits_matching_round=N_logits_matching_round,
         logits_matching_batchsize=logits_matching_batchsize,
         N_private_training_round=N_private_training_round,
-        private_training_batchsize=private_training_batchsize)
+        private_training_batchsize=private_training_batchsize,
+        restore_path=restore_path)
     
     collab = fedmd.collaborative_training()
 

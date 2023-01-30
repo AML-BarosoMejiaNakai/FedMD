@@ -29,13 +29,13 @@ CANDIDATE_MODELS = {"2_layer_CNN": cnn_2layers,
 def parseArg():
     parser = argparse.ArgumentParser(description='FedMD, a federated learning framework. \
     Participants are training collaboratively. ')
-    parser.add_argument('-wandb', metavar='wandb', nargs=1, 
+    parser.add_argument('-wandb', metavar='wandb', 
                         help='the wandb API key.'
                        )
-    parser.add_argument('-run_id', metavar='run_id', nargs=1, 
+    parser.add_argument('-run_id', metavar='run_id', 
                         help='the wandb run id to resume.'
                        )
-    parser.add_argument('-restore_path', metavar='restore_path', nargs='*', 
+    parser.add_argument('-restore_path', metavar='restore_path',
                         help='the wandb project path to restore files.'
                        )
     args = None

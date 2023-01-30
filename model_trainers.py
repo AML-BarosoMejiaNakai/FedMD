@@ -105,7 +105,6 @@ def test_network(network, test_dataset, batch_size=BATCH_SIZE):
 
         # Get predictions
         _, preds = torch.max(outputs.data, 1)
-        print(outputs, preds, labels)
 
         # Update Corrects
         running_corrects += torch.sum(preds == labels.data).data.item()

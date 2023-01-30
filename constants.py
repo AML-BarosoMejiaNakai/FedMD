@@ -1,4 +1,4 @@
-DEVICE = "cpu" # "cuda" or "cpu"
+DEVICE = "cuda" # "cuda" or "cpu"
 
 NUM_CLASSES = 100
 

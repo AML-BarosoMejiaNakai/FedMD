@@ -37,7 +37,7 @@ def init_wandb(run_id=None):
 
 def load_checkpoint(path, model, restore_path = None):
     loaded = False
-    if wandb.run.resumed:
+    if wandb.run.resumed or restore_path is not None:
         try:
             weights = wandb.restore(path, run_path=restore_path)
             model.load_state_dict(torch.load(weights.name))

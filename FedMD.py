@@ -45,7 +45,7 @@ class FedMD:
         self.private_training_batchsize = private_training_batchsize
 
         self.collaborative_agents = []
-        self.init_result = []
+        self.init_result = {}
 
         print("start model initialization: ")
         for i in range(self.N_agents):
@@ -90,7 +90,7 @@ class FedMD:
                 wandb.save(f'ckpt/{model_saved_names[i]}_initial_pri.pt')
                 last_test_acc = accuracy[-1]
                 wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc["test_accuracy"]
-
+                self.init_result[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc["test_accuracy"]
                 print(f"Full stack training done. Accuracy: {last_test_acc['test_accuracy']}")
 
                 # model_A = remove_last_layer(model_A, loss="mean_absolute_error")
@@ -98,6 +98,7 @@ class FedMD:
             else:
                 test_acc = test_network(model_A, private_test_data, 32)
                 wandb.run.summary[f"{model_saved_names[i]}_initial_test_acc"] = test_acc
+                self.init_result[f"{model_saved_names[i]}_initial_test_acc"] = last_test_acc["test_accuracy"]
             # end if load_checkpoint
 
             self.collaborative_agents.append({
@@ -120,7 +121,7 @@ class FedMD:
         print("Calculate the theoretical upper bounds for participants: ")
 
         self.upper_bounds = []
-        self.pooled_train_result = []
+        self.pooled_train_result = {}
         for i, model in enumerate(agents):
             print(f"UB - Model {self.model_saved_names[i]}")
             model_ub = copy.deepcopy(model)
@@ -168,9 +169,7 @@ class FedMD:
             self.upper_bounds.append(last_acc)
             # self.pooled_train_result.append({"val_acc": model_ub.history.history["val_accuracy"],
             #                                  "acc": model_ub.history.history["accuracy"]}) # "accuracy" == train accuracy
-            self.pooled_train_result.append({
-                "test_acc": last_acc,
-            })
+            self.pooled_train_result[f"{model_saved_names[i]}_ub_test_acc"] = last_acc
 
             del model_ub
         print("The upper bounds are:", self.upper_bounds)
@@ -215,6 +214,10 @@ class FedMD:
                 performances[f"{self.model_saved_names[index]}_test_acc"] = accuracy
                 collaboration_performance[index].append(accuracy)
             
+            if r < self.N_rounds // 3:
+                wandb.log(self.init_result, commit=False)
+            elif r >= 2*self.N_rounds // 3:
+                wandb.log(self.pooled_train_result, commit=False)
             wandb.log(performances)
             
             r += 1

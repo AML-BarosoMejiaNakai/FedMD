@@ -7,11 +7,11 @@ from constants import *
 def init_wandb(run_id=None):
     group_name = "fedmd"
 
-    configuration = CONF_MODELS
+    configuration = CONF_MODELS_BALANCED
     agents = ""
     for agent in configuration["models"]:
         agents += agent["model_type"][0]
-    job_name = f"M{configuration['N_agents']}_N{configuration['N_rounds']}_S{CONF_MODELS['N_subset']}_lr{LR}_A{agents}"
+    job_name = f"M{configuration['N_agents']}_N{configuration['N_rounds']}_S{CONF_MODELS_BALANCED['N_subset']}_lr{LR}_A{agents}"
 
     run = wandb.init(
                 id = run_id,

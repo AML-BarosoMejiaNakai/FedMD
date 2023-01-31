@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 import copy
 from model_trainers import *
-from CIFAR import stratified_sampling
+from data_utils import stratified_sampling
 import wandb
 import wandb_utils
 from constants import *

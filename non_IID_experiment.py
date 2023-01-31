@@ -1,3 +1,7 @@
+"""
+Implementation of FedMD based on the TensorFlow implementation of diogenes0319/FedMD_clean
+"""
+
 import argparse
 import os
 import argparse
@@ -6,13 +10,11 @@ import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-
-import torchvision
 
 from constants import * 
 from client import cnn_2layers, cnn_3layers
 from ResNet20 import resnet20
+import data_utils
 import CIFAR
 import model_trainers
 from FedMD import FedMD
@@ -58,27 +60,27 @@ def main():
     run_id = args.run_id
     restore_path = args.restore_path
 
-    model_config = CONF_MODELS["models"]
-    pre_train_params = CONF_MODELS["pre_train_params"]
-    model_saved_dir = CONF_MODELS["model_saved_dir"]
-    model_saved_names = CONF_MODELS["model_saved_names"]
-    is_early_stopping = CONF_MODELS["early_stopping"]
-    public_classes = CONF_MODELS["public_classes"]
-    private_classes = CONF_MODELS["private_classes"]
+    model_config = CONF_MODELS_IMBALANCED["models"]
+    pre_train_params = CONF_MODELS_IMBALANCED["pre_train_params"]
+    model_saved_dir = CONF_MODELS_IMBALANCED["model_saved_dir"]
+    model_saved_names = CONF_MODELS_IMBALANCED["model_saved_names"]
+    is_early_stopping = CONF_MODELS_IMBALANCED["early_stopping"]
+    public_classes = CONF_MODELS_IMBALANCED["public_classes"]
+    private_classes = CONF_MODELS_IMBALANCED["private_classes"]
     n_classes = len(public_classes) + len(private_classes)
 
-    N_agents = CONF_MODELS["N_agents"]
-    N_samples_per_class = CONF_MODELS["N_samples_per_class"]
+    N_agents = CONF_MODELS_IMBALANCED["N_agents"]
+    N_samples_per_class = CONF_MODELS_IMBALANCED["N_samples_per_class"]
 
-    N_rounds = CONF_MODELS["N_rounds"]
-    N_subset = CONF_MODELS["N_subset"]
-    N_private_training_round = CONF_MODELS["N_private_training_round"]
-    private_training_batchsize = CONF_MODELS["private_training_batchsize"]
-    N_logits_matching_round = CONF_MODELS["N_logits_matching_round"]
-    logits_matching_batchsize = CONF_MODELS["logits_matching_batchsize"]
+    N_rounds = CONF_MODELS_IMBALANCED["N_rounds"]
+    N_subset = CONF_MODELS_IMBALANCED["N_subset"]
+    N_private_training_round = CONF_MODELS_IMBALANCED["N_private_training_round"]
+    private_training_batchsize = CONF_MODELS_IMBALANCED["private_training_batchsize"]
+    N_logits_matching_round = CONF_MODELS_IMBALANCED["N_logits_matching_round"]
+    logits_matching_batchsize = CONF_MODELS_IMBALANCED["logits_matching_batchsize"]
 
 
-    result_save_dir = CONF_MODELS["result_save_dir"]
+    result_save_dir = CONF_MODELS_IMBALANCED["result_save_dir"]
 
     # This dataset has 100 classes containing 600 images each. There are 500 training images and 100 testing images per 
     # class. The 100 classes in the CIFAR-100 are grouped into 20 superclasses. Each image comes with a "fine" label (the class to which it belongs) and a 
@@ -91,22 +93,38 @@ def main():
 
     train_cifar10, test_cifar10   = CIFAR.load_CIFAR10() # train_cifar10 = public_dataset
     train_cifar100, test_cifar100 = CIFAR.load_CIFAR100()
+    train_coarse_cifar100, test_coarse_cifar100 = CIFAR.load_CIFAR100(granularity='coarse')
+
+    # Relations between superclasses and subclasses
+    relations = [set() for _ in range(20)]
+    for i, y_fine in enumerate(train_cifar100.targets):
+        relations[train_coarse_cifar100.targets[i]].add(y_fine)
+    for i in range(len(relations)):
+        relations[i] = list(relations[i])
+
+    fine_classes_in_use = [[relations[j][i%5] for j in private_classes] for i in range(N_agents)]
+    print("Subclasses partition per agent:")
+    print(fine_classes_in_use)
 
     print ("=== Generating class subsets ===")
 
-    private_train_dataset = CIFAR.generate_class_subset(train_cifar100, private_classes)
-    private_test_dataset  = CIFAR.generate_class_subset(test_cifar100,  private_classes)
-
-    for index, cls_ in enumerate(private_classes):        
-        private_train_dataset.targets[private_train_dataset.targets == cls_] = index + len(public_classes)
+    test_cifar100.targets = test_coarse_cifar100.targets
+    private_test_dataset = data_utils.generate_class_subset(test_cifar100, classes=private_classes)
+    for index in range(len(private_classes)-1, -1, -1):
+        cls_ = private_classes[index]
         private_test_dataset.targets[private_test_dataset.targets == cls_] = index + len(public_classes)
-    del index, cls_
     mod_private_classes = torch.arange(len(private_classes)) + len(public_classes)
+
     print (f"=== Splitting private dataset for the {N_agents} agents ===")
-
-    private_data, total_private_data = CIFAR.split_dataset(private_train_dataset, N_agents, N_samples_per_class, classes_in_use=mod_private_classes, seed=SEED)
-
-    private_test_dataset = CIFAR.generate_class_subset(private_test_dataset, mod_private_classes)
+    private_data, total_private_data = data_utils.split_dataset_imbalanced(train_cifar100, train_coarse_cifar100.targets, N_agents, N_samples_per_class, classes_per_agent=fine_classes_in_use, seed=SEED)
+    for index in range(len(private_classes)-1, -1, -1):
+        cls_ = private_classes[index]
+        total_private_data.targets[total_private_data.targets == cls_] = index + len(public_classes)
+        for i in range(N_agents):
+            private_data[i].targets[private_data[i].targets == cls_] = index + len(public_classes)
+    #private_train_dataset = data_utils.generate_class_subset(train_cifar100, private_classes)
+    #private_test_dataset  = data_utils.generate_class_subset(test_cifar100,  private_classes)
+    #private_test_dataset  = data_utils.generate_class_subset(private_test_dataset, mod_private_classes)
 
     run, job_id, resumed = init_wandb(run_id=run_id)
 

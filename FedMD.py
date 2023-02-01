@@ -152,6 +152,7 @@ class FedMD:
                     early_stop=early_stopping,
                     batch_size=BATCH_SIZE,
                     num_epochs=50,
+                    log_frequency=100,
                     returnAcc=True,
                 )
 

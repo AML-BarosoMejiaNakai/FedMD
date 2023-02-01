@@ -1,17 +1,17 @@
 import wandb
 import torch
 import os
-from constants import *
+from constants import CONF_MODELS_BALANCED
 ## -- WANDB --
 
-def init_wandb(run_id=None):
+def init_wandb(run_id=None, config=CONF_MODELS_BALANCED):
     group_name = "fedmd"
 
-    configuration = CONF_MODELS_BALANCED
+    configuration = config
     agents = ""
     for agent in configuration["models"]:
         agents += agent["model_type"][0]
-    job_name = f"M{configuration['N_agents']}_N{configuration['N_rounds']}_S{CONF_MODELS_BALANCED['N_subset']}_lr{LR}_A{agents}"
+    job_name = f"M{configuration['N_agents']}_N{configuration['N_rounds']}_S{config['N_subset']}_A{agents}"
 
     run = wandb.init(
                 id = run_id,

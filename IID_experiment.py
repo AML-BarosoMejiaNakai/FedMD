@@ -110,7 +110,7 @@ def main():
 
     private_test_dataset = data_utils.generate_class_subset(private_test_dataset, mod_private_classes)
 
-    run, job_id, resumed = init_wandb(run_id=run_id)
+    run, job_id, resumed = init_wandb(run_id=run_id, config=CONF_MODELS_BALANCED)
 
     agents = []
     for i, item in enumerate(model_config):

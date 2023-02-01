@@ -18,8 +18,8 @@ class EarlyStop:
         return False
 
 def load_optimizer(model, params):
-    assert model is not None and params is not None and \
-        "optimizer" in params and "lr" in params:
+    assert (model is not None and params is not None and \
+        "optimizer" in params and "lr" in params)
     
     optimizer = None
     lr = params["lr"]

@@ -17,6 +17,7 @@ from ResNet20 import resnet20
 import data_utils
 import CIFAR
 import model_trainers
+import trainer_utils
 from FedMD import FedMD
 from wandb_utils import *
 
@@ -132,22 +133,23 @@ def main():
     for i, item in enumerate(model_config):
         model_name = item["model_type"]
         model_params = item["params"]
+        train_params = item["train_params"]
         tmp = CANDIDATE_MODELS[model_name](n_classes=n_classes, 
                                             input_shape=(3,32,32),
                                             **model_params)
         print("model {0} : {1}".format(i, model_saved_names[i]))
-        agents.append(tmp)
+        agents.append({"model": tmp, "train_params": train_params})
         
         del model_name, model_params, tmp
     #END FOR LOOP
     
     for i, agent in enumerate(agents):
-        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i], restore_path)
+        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agent["model"], restore_path)
         if not loaded:
-            optimizer = optim.Adam(agent.parameters(), lr = LR)
+            optimizer = trainer_utils.load_optimizer(agent["model"], agent["train_params"])
             loss = nn.CrossEntropyLoss()
             print(f"===== TRAINING {model_saved_names[i]} =====")
-            accuracies = model_trainers.train_model(network=agent, 
+            accuracies = model_trainers.train_model(network=agent["model"], 
                 dataset=train_cifar10, 
                 test_dataset=test_cifar10, 
                 loss_fn=loss, 
@@ -158,11 +160,11 @@ def main():
             )
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = accuracies[-1]["test_accuracy"]
             
-            torch.save(agent.state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
+            torch.save(agent["model"].state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             wandb.save(f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
         else:
-            test_acc = model_trainers.test_network(network=agents[i], test_dataset=test_cifar10, batch_size=128)
+            test_acc = model_trainers.test_network(network=agent["model"], test_dataset=test_cifar10, batch_size=128)
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = test_acc
 
 

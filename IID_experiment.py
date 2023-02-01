@@ -18,6 +18,7 @@ import CIFAR
 import model_trainers
 from FedMD import FedMD
 from wandb_utils import *
+import trainer_utils
 
 from PIL import Image
 from tqdm import tqdm
@@ -115,33 +116,35 @@ def main():
     for i, item in enumerate(model_config):
         model_name = item["model_type"]
         model_params = item["params"]
+        train_params = item["train_params"]
         tmp = CANDIDATE_MODELS[model_name](n_classes=n_classes, 
                                             input_shape=(3,32,32),
                                             **model_params)
         print("model {0} : {1}".format(i, model_saved_names[i]))
-        agents.append(tmp)
+        agents.append({"model": tmp, "train_params": train_params})
         
         del model_name, model_params, tmp
     #END FOR LOOP
     
     for i, agent in enumerate(agents):
-        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i], restore_path)
+        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i]["model"], restore_path)
         if not loaded:
-            optimizer = optim.Adam(agent.parameters(), lr = LR)
+            optimizer = trainer_utils.load_optimizer(agent["model"], agent["train_params"])#optim.Adam(agent.parameters(), lr = LR)
             loss = nn.CrossEntropyLoss()
             print(f"===== TRAINING {model_saved_names[i]} =====")
-            accuracies = model_trainers.train_model(network=agent, 
+            accuracies = model_trainers.train_model(network=agent["model"], 
                 dataset=train_cifar10, 
                 test_dataset=test_cifar10, 
                 loss_fn=loss, 
                 optimizer=optimizer, 
                 batch_size=128, 
                 num_epochs=20, 
-                returnAcc=True
+                returnAcc=True,
+                early_stop=trainer_utils.EarlyStop(pre_train_params["patience"], pre_train_params["min_delta"])
             )
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = accuracies[-1]["test_accuracy"]
             
-            torch.save(agent.state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
+            torch.save(agent["model"].state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             wandb.save(f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
         else:

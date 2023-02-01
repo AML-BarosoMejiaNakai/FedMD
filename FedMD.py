@@ -4,11 +4,11 @@ import torch.nn as nn
 import numpy as np
 import copy
 from model_trainers import *
+from trainer_utils import *
 from data_utils import stratified_sampling
 import wandb
 import wandb_utils
 from constants import *
-
 
 class FedMD:
     # parties changed to agents
@@ -50,16 +50,14 @@ class FedMD:
         print("start model initialization: ")
         for i in range(self.N_agents):
             print("Model ", self.model_saved_names[i])
-            model_A = copy.deepcopy(agents[i])  # Was clone_model
+            model_A = copy.deepcopy(agents[i]["model"])  # Was clone_model
             # model_A.set_weights(agents[i].get_weights())
             if not wandb_utils.load_checkpoint(f"ckpt/{self.model_saved_names[i]}_initial_pri.pt", model_A, restore_path):
-                model_A.load_state_dict(agents[i].state_dict())
+                model_A.load_state_dict(agents[i]["model"].state_dict())
                 # model_A.compile(optimizer=tf.keras.optimizers.Adam(lr = LR),
                 #                      loss = "sparse_categorical_crossentropy",
                 #                      metrics = ["accuracy"])
-                optimizer = optim.Adam(
-                    model_A.parameters(), lr=LR, weight_decay=WEIGHT_DECAY
-                )
+                optimizer = load_optimizer(agents[i]["model"], agents[i]["train_params"])
                 loss = nn.CrossEntropyLoss()
                 early_stopping = EarlyStop(patience=10, min_delta=0.01)
 
@@ -105,6 +103,7 @@ class FedMD:
                 "model_logits": model_A,
                 "model_classifier": model_A,
                 "model_weights": model_A.state_dict(),
+                "train_params": agents[i]["train_params"]
             })  # Was get_weights()
 
             # TODO: Need to include also the validation dataset on model_train and save these statistics
@@ -122,7 +121,8 @@ class FedMD:
 
         self.upper_bounds = []
         self.pooled_train_result = {}
-        for i, model in enumerate(agents):
+        for i, agent in enumerate(agents):
+            model = agent["model"]
             print(f"UB - Model {self.model_saved_names[i]}")
             model_ub = copy.deepcopy(model)
             if not wandb_utils.load_checkpoint(f"ckpt/ub/{self.model_saved_names[i]}_ub.pt", model_ub, restore_path):
@@ -131,9 +131,7 @@ class FedMD:
                 # model_ub.compile(optimizer=tf.keras.optimizers.Adam(lr = LR),
                 #                  loss = "sparse_categorical_crossentropy",
                 #                  metrics = ["accuracy"])
-                optimizer = optim.Adam(
-                    model_ub.parameters(), lr=LR, weight_decay=WEIGHT_DECAY
-                )
+                optimizer = load_optimizer(agent["model"], agent["train_params"])
                 loss = nn.CrossEntropyLoss()
                 early_stopping = EarlyStop(patience=10, min_delta=0.01)
 
@@ -237,18 +235,16 @@ class FedMD:
                 #                       batch_size = self.logits_matching_batchsize,
                 #                       epochs = self.N_logits_matching_round,
                 #                       shuffle=True, verbose = 0)
-                optimizer = optim.Adam(
-                    agent["model_logits"].parameters(), lr=LR, weight_decay=WEIGHT_DECAY
-                )
+                optimizer = load_optimizer(agent["model_logits"], agent["train_params"])
                 logits_loss = nn.L1Loss()
                 alignment_data.targets = logits
                 train_model(
                     agent["model_logits"],
                     alignment_data,
                     loss_fn=logits_loss,
+                    optimizer=optimizer,
                     batch_size=self.logits_matching_batchsize,
                     num_epochs=self.N_logits_matching_round,
-                    optimizer=optimizer,
                 )
 
                 # agent["model_weights"] = agent["model_logits"].get_weights()
@@ -269,19 +265,15 @@ class FedMD:
                 #                           epochs = self.N_private_training_round,
                 #                           shuffle=True, verbose = 0)
 
-                optimizer = optim.Adam(
-                    agent["model_classifier"].parameters(),
-                    lr=LR,
-                    weight_decay=WEIGHT_DECAY,
-                )
+                optimizer = load_optimizer(agent["model_classifier"], agent["train_params"])
                 loss = nn.CrossEntropyLoss()
                 train_model(
                     agent["model_classifier"],
                     self.private_data[index],
                     loss_fn=loss,
+                    optimizer=optimizer,
                     batch_size=self.private_training_batchsize,
                     num_epochs=self.N_private_training_round,
-                    optimizer=optimizer,
                 )
 
                 # agent["model_weights"] = agent["model_classifier"].get_weights()

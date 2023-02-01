@@ -127,7 +127,7 @@ def main():
     #END FOR LOOP
     
     for i, agent in enumerate(agents):
-        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agents[i]["model"], restore_path)
+        loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agent["model"], restore_path)
         if not loaded:
             optimizer = trainer_utils.load_optimizer(agent["model"], agent["train_params"])#optim.Adam(agent.parameters(), lr = LR)
             loss = nn.CrossEntropyLoss()
@@ -148,7 +148,7 @@ def main():
             wandb.save(f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
         else:
-            test_acc = model_trainers.test_network(network=agents[i], test_dataset=test_cifar10, batch_size=128)
+            test_acc = model_trainers.test_network(network=agent["model"], test_dataset=test_cifar10, batch_size=128)
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = test_acc
 
 

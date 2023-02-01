@@ -57,7 +57,7 @@ class FedMD:
                 # model_A.compile(optimizer=tf.keras.optimizers.Adam(lr = LR),
                 #                      loss = "sparse_categorical_crossentropy",
                 #                      metrics = ["accuracy"])
-                optimizer = load_optimizer(agents[i]["model"], agents[i]["train_params"])
+                optimizer = load_optimizer(model_A, agents[i]["train_params"])
                 loss = nn.CrossEntropyLoss()
                 early_stopping = EarlyStop(patience=10, min_delta=0.01)
 
@@ -131,7 +131,7 @@ class FedMD:
                 # model_ub.compile(optimizer=tf.keras.optimizers.Adam(lr = LR),
                 #                  loss = "sparse_categorical_crossentropy",
                 #                  metrics = ["accuracy"])
-                optimizer = load_optimizer(agent["model"], agent["train_params"])
+                optimizer = load_optimizer(model_ub, agent["train_params"])
                 loss = nn.CrossEntropyLoss()
                 early_stopping = EarlyStop(patience=10, min_delta=0.01)
 

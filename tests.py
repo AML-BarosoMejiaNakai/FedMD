@@ -1,6 +1,6 @@
 from ResNet20 import resnet20
 from model_trainers import *
-from CIFAR import *
+from data_utils import *
 from datasets import CustomSubset as Subset
 model = resnet20(16)
 model.load_state_dict(torch.load("ckpt/ResNet20_B1_initial_pri.pt", map_location=torch.device('cpu')))

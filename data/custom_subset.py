@@ -3,6 +3,11 @@ from torch.utils.data.dataset import Subset
 
 
 class CustomSubset(Subset):
+    """
+    Custom implementation of the torch.utils.data.dataset.Subset to have a modified copy
+    of the targets of the datasets, enabling custom labels to be applied. The use is exactly
+    the same as a torch Subset but it allows also calling Subset.targets
+    """
     def __init__(self, dataset, indices) -> None:
         super().__init__(dataset, indices)
         if torch.is_tensor(indices):

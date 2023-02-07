@@ -1,5 +1,7 @@
 """
 Implementation of FedMD based on the TensorFlow implementation of diogenes0319/FedMD_clean
+Non-IID scenario where models need to correctly predict the super-class belonging to an image
+by only being aware of one sub-class per super-class.
 """
 import argparse
 import os
@@ -50,7 +52,7 @@ def main():
     
     wandb_api_key = args.wandb
     os.environ["WANDB_API_KEY"] = wandb_api_key
-    os.environ["WANDB_MODE"] = "online"
+    os.environ["WANDB_MODE"] = "online" if args.wandb else "offline"
     ckpt_path = 'ckpt'
     paths = [ckpt_path, f"{ckpt_path}/ub"]
     for path in paths:
@@ -85,9 +87,6 @@ def main():
     # This dataset has 100 classes containing 600 images each. There are 500 training images and 100 testing images per 
     # class. The 100 classes in the CIFAR-100 are grouped into 20 superclasses. Each image comes with a "fine" label (the class to which it belongs) and a 
     # "coarse" label (the superclass to which it belongs).
-    # Define transforms for training phase
-
-    # random crop, random horizontal flip, per-pixel normalization 
 
     print ("=== LOADING CIFAR 10 AND CIFAR 100 ===")
 
@@ -96,22 +95,27 @@ def main():
 
     print ("=== Generating class subsets ===")
 
+    # Create a subset of dataset containing only the private_classes to use
     private_train_dataset = data_utils.generate_class_subset(train_cifar100, private_classes)
     private_test_dataset  = data_utils.generate_class_subset(test_cifar100,  private_classes)
 
+    # Map the private classes to the range [10,16) 
     for index, cls_ in enumerate(private_classes):        
         private_train_dataset.targets[private_train_dataset.targets == cls_] = index + len(public_classes)
         private_test_dataset.targets[private_test_dataset.targets == cls_] = index + len(public_classes)
     del index, cls_
     mod_private_classes = torch.arange(len(private_classes)) + len(public_classes)
-    print (f"=== Splitting private dataset for the {N_agents} agents ===")
 
+    # Split the train dataset among the agent, with N_samples_per_class images per class per agent
+    print (f"=== Splitting private dataset for the {N_agents} agents ===")
     private_data, total_private_data = data_utils.split_dataset(private_train_dataset, N_agents, N_samples_per_class, classes_in_use=mod_private_classes, seed=SEED)
 
+    # Create subset of the test dataset based on remapped private classes
     private_test_dataset = data_utils.generate_class_subset(private_test_dataset, mod_private_classes)
 
     run, job_id, resumed = init_wandb(run_id=run_id, config=CONF_MODELS_BALANCED)
 
+    # Creation of agent models
     agents = []
     for i, item in enumerate(model_config):
         model_name = item["model_type"]
@@ -124,8 +128,10 @@ def main():
         agents.append({"model": tmp, "train_params": train_params})
         
         del model_name, model_params, tmp
-    #END FOR LOOP
+    # end for
     
+    # Initial transfer learning training on the public dataset
+    # For each model a checkpoint will be uploaded if it exists, otherwise it will perform training  
     for i, agent in enumerate(agents):
         loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agent["model"], restore_path)
         if not loaded:
@@ -146,12 +152,14 @@ def main():
             
             torch.save(agent["model"].state_dict(), f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
             wandb.save(f'{ckpt_path}/{model_saved_names[i]}_initial_pub.pt')
-            #wandb.log({f"{model_saved_names[i]}_initial_test_acc": best_test_acc}, step=0)
         else:
             test_acc = model_trainers.test_network(network=agent["model"], test_dataset=test_cifar10, batch_size=128)
             wandb.run.summary[f"{model_saved_names[i]}_initial_pub_test_acc"] = test_acc
+        # end if load ckpt
+    # end for
 
-
+    # Creation of the FedMD algorithm
+    # Performs initial private training + upper bound calculation
     fedmd = FedMD(agents, model_saved_names,
         public_dataset=train_cifar10, 
         private_data=private_data, 
@@ -169,8 +177,6 @@ def main():
 
     wandb.finish()
 # end main
-
-
 
 if __name__ == '__main__':
     main()

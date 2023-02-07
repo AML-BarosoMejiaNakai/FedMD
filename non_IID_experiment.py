@@ -51,7 +51,7 @@ def main():
     
     wandb_api_key = args.wandb
     os.environ["WANDB_API_KEY"] = wandb_api_key
-    os.environ["WANDB_MODE"] = "online"
+    os.environ["WANDB_MODE"] = "online" if args.wandb else "offline"
     ckpt_path = 'ckpt'
     paths = [ckpt_path, f"{ckpt_path}/ub"]
     for path in paths:
@@ -86,9 +86,6 @@ def main():
     # This dataset has 100 classes containing 600 images each. There are 500 training images and 100 testing images per 
     # class. The 100 classes in the CIFAR-100 are grouped into 20 superclasses. Each image comes with a "fine" label (the class to which it belongs) and a 
     # "coarse" label (the superclass to which it belongs).
-    # Define transforms for training phase
-
-    # random crop, random horizontal flip, per-pixel normalization 
 
     print ("=== LOADING CIFAR 10 AND CIFAR 100 ===")
 
@@ -103,19 +100,24 @@ def main():
     for i in range(len(relations)):
         relations[i] = list(relations[i])
 
+    # Assign subclasses to use for each agent (one subclass per superclass)
     fine_classes_in_use = [[relations[j][i%5] for j in private_classes] for i in range(N_agents)]
     print("Subclasses partition per agent:")
     print(fine_classes_in_use)
 
     print ("=== Generating class subsets ===")
 
+    # Create a subset of dataset containing only the private super-classes to use
     test_cifar100.targets = test_coarse_cifar100.targets
     private_test_dataset = data_utils.generate_class_subset(test_cifar100, classes=private_classes)
+
+    # Map the private classes to the range [10,16) 
     for index in range(len(private_classes)-1, -1, -1):
         cls_ = private_classes[index]
         private_test_dataset.targets[private_test_dataset.targets == cls_] = index + len(public_classes)
     mod_private_classes = torch.arange(len(private_classes)) + len(public_classes)
 
+    # Split the train dataset among the agent, with N_samples_per_class images per class per agent
     print (f"=== Splitting private dataset for the {N_agents} agents ===")
     private_data, total_private_data = data_utils.split_dataset_imbalanced(train_cifar100, train_coarse_cifar100.targets, N_agents, N_samples_per_class, classes_per_agent=fine_classes_in_use, seed=SEED)
     for index in range(len(private_classes)-1, -1, -1):
@@ -123,12 +125,10 @@ def main():
         total_private_data.targets[total_private_data.targets == cls_] = index + len(public_classes)
         for i in range(N_agents):
             private_data[i].targets[private_data[i].targets == cls_] = index + len(public_classes)
-    #private_train_dataset = data_utils.generate_class_subset(train_cifar100, private_classes)
-    #private_test_dataset  = data_utils.generate_class_subset(test_cifar100,  private_classes)
-    #private_test_dataset  = data_utils.generate_class_subset(private_test_dataset, mod_private_classes)
 
     run, job_id, resumed = init_wandb(run_id=run_id, config=CONF_MODELS_IMBALANCED)
 
+    # Creation of agent models
     agents = []
     for i, item in enumerate(model_config):
         model_name = item["model_type"]
@@ -141,8 +141,11 @@ def main():
         agents.append({"model": tmp, "train_params": train_params})
         
         del model_name, model_params, tmp
-    #END FOR LOOP
+    # end for
     
+    # Initial transfer learning training on the public dataset
+    # For each model a checkpoint will be uploaded if it exists, otherwise it will perform training  
+
     for i, agent in enumerate(agents):
         loaded = load_checkpoint(f"{ckpt_path}/{model_saved_names[i]}_initial_pub.pt", agent["model"], restore_path)
         if not loaded:

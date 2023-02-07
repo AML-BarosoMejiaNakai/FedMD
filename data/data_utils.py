@@ -2,11 +2,32 @@ import torch
 from data.custom_subset import CustomSubset as Subset
 
 def generate_class_subset(dataset, classes):
+    """
+    Generates a torch Subset including only the samples which label is contained in classes
+
+    Parameters:
+        dataset: torch Dataset
+        classes: Array[Int] with the class labels 
+
+    Returns: CustomSubset of selected images
+    """
     dataset_classes = torch.tensor(dataset.targets)
     idxs = torch.cat([torch.nonzero(dataset_classes == i) for i in classes])
     return Subset(dataset, idxs)
 
 def split_dataset(dataset, N_agents, N_samples_per_class, classes_in_use = None, seed = None):
+    """
+    Generates a random class balanced split of the dataset among N_agents,
+    assigning N_samples_per_class samples per class per agent.
+
+    Parameters:
+        dataset: torch Dataset or CustomSubset to be splitted
+        N_agents: Int of the number of splits to be done
+        N_samples_per_class: Int of number of samples per each class to be assigned to each agent
+        classes_in_use: Array[Int] with the class labels to be sampled from. If it's not specified
+                        the whole set of labels will be used.
+        seed: Seed to control the random function
+    """
     if classes_in_use is None:
         classes_in_use = list(set(dataset.targets))
     if seed is not None:
@@ -32,6 +53,19 @@ def split_dataset(dataset, N_agents, N_samples_per_class, classes_in_use = None,
     return private_data, all_private_data
 
 def split_dataset_imbalanced(dataset, super_classes, N_agents, N_samples_per_class, classes_per_agent, seed = None):
+    """
+    Generates a random class imbalanced split of the dataset among N_agents,
+    assigning N_samples_per_class samples per class per agent, where each agent is assigned
+    a specific set of classes_per_agent.
+
+    Parameters:
+        dataset: torch Dataset or CustomSubset to be splitted
+        super_classes: Array of class labels to be assigned to the dataset
+        N_agents: Int of the number of splits to be done
+        N_samples_per_class: Int of number of samples per each class to be assigned to each agent
+        classes_per_agent: Array[Array[Int]] with the class labels to be sampled from for each specific agent.
+        seed: Seed to control the random function
+    """
     if seed is not None:
         rand_state = torch.random.get_rng_state()
         torch.manual_seed(seed)
@@ -56,6 +90,13 @@ def split_dataset_imbalanced(dataset, super_classes, N_agents, N_samples_per_cla
 
 
 def stratified_sampling(dataset, size = 3000):
+    """
+    Generates a stratified-sampled subset using the dataset labels as categories
+    
+    Parameters:
+        dataset: pytorch Dataset to be sample from
+        size: Sample size 
+    """
     import sklearn.model_selection
     idxs = sklearn.model_selection.train_test_split([i for i in range(len(dataset))], \
         train_size = size, stratify = dataset.targets)[0]

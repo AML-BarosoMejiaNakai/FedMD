@@ -1,5 +1,5 @@
 import torch
-from datasets import CustomSubset as Subset
+from data.custom_subset import CustomSubset as Subset
 
 def generate_class_subset(dataset, classes):
     dataset_classes = torch.tensor(dataset.targets)

@@ -3,9 +3,9 @@ import torch.optim as optim
 import torch.nn as nn
 import numpy as np
 import copy
-from model_trainers import *
-from trainer_utils import *
-from data_utils import stratified_sampling
+from training.model_trainers import *
+from training.trainer_utils import *
+from data.data_utils import stratified_sampling
 import wandb
 import wandb_utils
 from constants import *

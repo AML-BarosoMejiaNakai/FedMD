@@ -11,14 +11,14 @@ import torch.nn as nn
 import torch.optim as optim
 
 from constants import * 
-from client import cnn_2layers, cnn_3layers
-from ResNet20 import resnet20
-import data_utils
-import CIFAR
-import model_trainers
-from FedMD import FedMD
+from models.client import cnn_2layers, cnn_3layers
+from models.ResNet20 import resnet20
+import data.data_utils as data_utils
+import data.CIFAR as CIFAR
+import training.model_trainers as model_trainers
+from training.FedMD import FedMD
 from wandb_utils import *
-import trainer_utils
+import training.trainer_utils as trainer_utils
 
 from PIL import Image
 from tqdm import tqdm

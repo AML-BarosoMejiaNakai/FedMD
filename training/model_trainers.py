@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Subset, DataLoader
-from trainer_utils import EarlyStop
+from training.trainer_utils import EarlyStop
 from torch.backends import cudnn
 from constants import *
 
